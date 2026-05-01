@@ -1,0 +1,168 @@
+<div class="mfa-container">
+  <div class="mfa-card">
+    <div class="mfa-header">
+      <div class="icon-wrapper">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="M9 12l2 2 4-4"/>
+        </svg>
+      </div>
+      <h1>Two-Factor Authentication</h1>
+      <p>Enter the 6-digit code sent to your phone</p>
+    </div>
+
+    @if (!success) {
+      <div class="mfa-content">
+        <div class="code-inputs">
+          <div class="code-input-wrapper" [class.has-error]="error">
+            <input
+              #input0
+              type="text"
+              maxlength="1"
+              [(ngModel)]="codeInputs[0]"
+              (input)="onInput(0, $event)"
+              (keydown)="onKeyDown(0, $event)"
+              (paste)="onPaste($event)"
+              [disabled]="loading"
+              class="code-input"
+            />
+            <span class="input-number">1</span>
+          </div>
+          <div class="code-input-wrapper" [class.has-error]="error">
+            <input
+              #input1
+              type="text"
+              maxlength="1"
+              [(ngModel)]="codeInputs[1]"
+              (input)="onInput(1, $event)"
+              (keydown)="onKeyDown(1, $event)"
+              (paste)="onPaste($event)"
+              [disabled]="loading"
+              class="code-input"
+            />
+            <span class="input-number">2</span>
+          </div>
+          <div class="code-input-wrapper" [class.has-error]="error">
+            <input
+              #input2
+              type="text"
+              maxlength="1"
+              [(ngModel)]="codeInputs[2]"
+              (input)="onInput(2, $event)"
+              (keydown)="onKeyDown(2, $event)"
+              (paste)="onPaste($event)"
+              [disabled]="loading"
+              class="code-input"
+            />
+            <span class="input-number">3</span>
+          </div>
+          <div class="code-input-wrapper" [class.has-error]="error">
+            <input
+              #input3
+              type="text"
+              maxlength="1"
+              [(ngModel)]="codeInputs[3]"
+              (input)="onInput(3, $event)"
+              (keydown)="onKeyDown(3, $event)"
+              (paste)="onPaste($event)"
+              [disabled]="loading"
+              class="code-input"
+            />
+            <span class="input-number">4</span>
+          </div>
+          <div class="code-input-wrapper" [class.has-error]="error">
+            <input
+              #input4
+              type="text"
+              maxlength="1"
+              [(ngModel)]="codeInputs[4]"
+              (input)="onInput(4, $event)"
+              (keydown)="onKeyDown(4, $event)"
+              (paste)="onPaste($event)"
+              [disabled]="loading"
+              class="code-input"
+            />
+            <span class="input-number">5</span>
+          </div>
+          <div class="code-input-wrapper" [class.has-error]="error">
+            <input
+              #input5
+              type="text"
+              maxlength="1"
+              [(ngModel)]="codeInputs[5]"
+              (input)="onInput(5, $event)"
+              (keydown)="onKeyDown(5, $event)"
+              (paste)="onPaste($event)"
+              [disabled]="loading"
+              class="code-input"
+            />
+            <span class="input-number">6</span>
+          </div>
+        </div>
+
+        @if (error) {
+          <div class="error-message">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span>{{ error }}</span>
+          </div>
+        }
+
+        @if (loading) {
+          <div class="loading-spinner">
+            <div class="spinner"></div>
+            <span>Verifying code...</span>
+          </div>
+        }
+
+        <div class="mfa-actions">
+          <button
+            class="resend-btn"
+            (click)="resendCode()"
+            [disabled]="loading || !canResend"
+            [class.disabled]="!canResend"
+          >
+            @if (!canResend) {
+              <span>Resend code in {{ getMinutes() }}:{{ getSeconds() < 10 ? '0' + getSeconds() : getSeconds() }}</span>
+            } @else {
+              <span>Resend code</span>
+            }
+          </button>
+
+          <button
+            class="cancel-btn"
+            routerLink="/auth/login"
+            [disabled]="loading"
+          >
+            Cancel
+          </button>
+        </div>
+
+        <div class="help-text">
+          <p>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <strong>Didn't receive the code?</strong> Check your phone number and try again. The code will expire in 10 minutes.
+          </p>
+        </div>
+      </div>
+    } @else {
+      <div class="success-animation">
+        <div class="success-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+        </div>
+        <h2>Verification Successful!</h2>
+        <p>Redirecting you to your dashboard...</p>
+      </div>
+    }
+  </div>
+</div>

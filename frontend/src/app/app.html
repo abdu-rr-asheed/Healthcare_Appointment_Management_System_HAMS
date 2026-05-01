@@ -1,0 +1,44 @@
+<div class="app-container">
+  @if (isAuthenticated) {
+    <header class="app-header">
+      <div class="header-content">
+        <div class="logo">
+          <h1>HAMS</h1>
+          <span class="subtitle">Healthcare Appointment Management</span>
+        </div>
+        
+        <nav class="main-nav">
+          <a routerLink="/dashboard" routerLinkActive="active" class="nav-link">Dashboard</a>
+          <a routerLink="/patient" routerLinkActive="active" class="nav-link">Patient Portal</a>
+          <a routerLink="/clinician" routerLinkActive="active" class="nav-link">Clinician Portal</a>
+          <a routerLink="/admin" routerLinkActive="active" class="nav-link">Admin Portal</a>
+        </nav>
+        
+        <div class="user-menu">
+          <span class="user-name">User</span>
+          <button (click)="logout()" class="logout-btn">Logout</button>
+        </div>
+      </div>
+    </header>
+  }
+
+  <main class="main-content" [class.authenticated]="isAuthenticated">
+    <router-outlet></router-outlet>
+  </main>
+
+  <footer class="app-footer">
+    <p>&copy; 2024 Healthcare Appointment Management System. All rights reserved.</p>
+  </footer>
+
+  <div class="notification-container">
+    @for (notification of notificationService.notifications$ | async; track notification.id) {
+      <div class="notification notification-{{notification.type}}">
+        <div class="notification-header">
+          <h4>{{notification.title}}</h4>
+          <button (click)="notificationService.remove(notification.id)" class="close-btn">&times;</button>
+        </div>
+        <p>{{notification.message}}</p>
+      </div>
+    }
+  </div>
+</div>

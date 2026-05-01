@@ -1,0 +1,109 @@
+<div class="audit-log-container">
+  <div class="page-header">
+    <h1>Audit Log</h1>
+    <p class="subtitle">View all system activity and user actions</p>
+  </div>
+
+  <div class="content-card filters-card">
+    <h2>Filters</h2>
+    
+    <div class="filters-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label>User ID</label>
+          <input type="text" [(ngModel)]="filters().userId" placeholder="Enter user ID" />
+        </div>
+        <div class="form-group">
+          <label>Action Type</label>
+          <select [(ngModel)]="filters().action">
+            <option value="">All Actions</option>
+            @for (action of actionTypes; track action) {
+              <option [value]="action">{{ action }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Start Date</label>
+          <input type="date" [(ngModel)]="filters().startDate" />
+        </div>
+        <div class="form-group">
+          <label>End Date</label>
+          <input type="date" [(ngModel)]="filters().endDate" />
+        </div>
+      </div>
+
+      <div class="filter-actions">
+        <button class="apply-btn" (click)="applyFilters()">Apply Filters</button>
+        <button class="clear-btn" (click)="clearFilters()">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="content-card results-card">
+    <div class="results-header">
+      <h2>Audit Entries</h2>
+      <button class="export-btn" (click)="exportLog()">Export CSV</button>
+    </div>
+
+    <div class="results-info">
+      Showing {{ entries().length }} of {{ totalCount() }} entries
+      (Page {{ currentPage() }} of {{ totalPages() }})
+    </div>
+
+    @if (loading()) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Loading audit log...</p>
+      </div>
+    } @else if (entries().length === 0) {
+      <div class="empty-state">
+        <p>No audit entries found</p>
+      </div>
+    } @else {
+      <div class="audit-table">
+        <div class="table-header">
+          <div class="col-timestamp">Timestamp</div>
+          <div class="col-user">User</div>
+          <div class="col-action">Action</div>
+          <div class="col-resource">Resource</div>
+          <div class="col-outcome">Outcome</div>
+        </div>
+
+        @for (entry of entries(); track entry.id) {
+          <div class="table-row">
+            <div class="col-timestamp">{{ formatDate(entry.timestamp) }}</div>
+            <div class="col-user">
+              <div class="user-name">{{ entry.userName || entry.userId }}</div>
+              <div class="user-role">{{ entry.userRole }}</div>
+            </div>
+            <div class="col-action">{{ entry.action }}</div>
+            <div class="col-resource">
+              {{ entry.resourceType }}
+              @if (entry.resourceId) {
+                <span class="resource-id">{{ entry.resourceId }}</span>
+              }
+            </div>
+            <div class="col-outcome">
+              <span class="outcome-badge" [class]="getOutcomeClass(entry.outcome)">
+                {{ entry.outcome }}
+              </span>
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="pagination">
+        <button class="page-btn" (click)="previousPage()" [disabled]="currentPage() === 1">
+          ← Previous
+        </button>
+        <span class="page-info">Page {{ currentPage() }} of {{ totalPages() }}</span>
+        <button class="page-btn" (click)="nextPage()" [disabled]="currentPage() >= totalPages()">
+          Next →
+        </button>
+      </div>
+    }
+  </div>
+</div>

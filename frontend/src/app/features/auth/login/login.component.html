@@ -1,0 +1,71 @@
+<div class="login-container">
+  <div class="login-card">
+    <div class="login-header">
+      <h1>HAMS Login</h1>
+      <p>Healthcare Appointment Management System</p>
+    </div>
+
+    <form (ngSubmit)="onSubmit()" class="login-form">
+      <div class="form-group">
+        <label for="nhsNumber">NHS Number</label>
+        <input
+          type="text"
+          id="nhsNumber"
+          [(ngModel)]="loginRequest.nhsNumber"
+          name="nhsNumber"
+          required
+          placeholder="Enter your NHS number"
+          [disabled]="loading"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <div class="password-input">
+          <input
+            [type]="showPassword ? 'text' : 'password'"
+            id="password"
+            [(ngModel)]="loginRequest.password"
+            name="password"
+            required
+            placeholder="Enter your password"
+            [disabled]="loading"
+          />
+          <button
+            type="button"
+            (click)="togglePassword()"
+            class="toggle-password"
+            [disabled]="loading"
+          >
+            {{ showPassword ? 'Hide' : 'Show' }}
+          </button>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="login-btn" [disabled]="loading">
+          @if (loading) {
+            <span>Logging in...</span>
+          } @else {
+            <span>Login</span>
+          }
+        </button>
+      </div>
+
+      <div class="form-footer">
+        <div class="footer-links">
+          <a routerLink="/auth/forgot-password">Forgot Password?</a>
+          <a routerLink="/auth/register">Create an account</a>
+        </div>
+      </div>
+    </form>
+
+    <div class="demo-credentials">
+      <h3>Demo Credentials</h3>
+      <p><strong>Patient:</strong> NHS: "PATIENT001" | Pass: "Patient123!"</p>
+      <p><strong>Clinician:</strong> NHS: "DOC001" | Pass: "Doctor123!"</p>
+      <p><strong>Admin:</strong> NHS: "ADMIN001" | Pass: "Admin123!"</p>
+      <p class="note">Note: Make sure backend is running at http://localhost:8080</p>
+    </div>
+  </div>
+</div>

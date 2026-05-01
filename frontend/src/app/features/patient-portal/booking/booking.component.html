@@ -1,0 +1,207 @@
+<div class="booking-container">
+  <div class="booking-header">
+    <h1>Book an Appointment</h1>
+    <p>Follow the steps to schedule your appointment</p>
+  </div>
+
+  <!-- Progress Steps -->
+  <div class="progress-steps">
+    @for (step of [1, 2, 3, 4]; track step) {
+      <div class="step-item" [class.active]="currentStep() >= step" [class.completed]="currentStep() > step">
+        <div class="step-number">
+          @if (currentStep() > step) {
+            ✓
+          } @else {
+            {{step}}
+          }
+        </div>
+        <div class="step-label">
+          @switch (step) {
+            @case (1) { Select Department }
+            @case (2) { Choose Time }
+            @case (3) { Confirm Details }
+            @case (4) { Booking Complete }
+          }
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Step 1: Select Department & Clinician -->
+  @if (currentStep() === 1) {
+    <div class="booking-step">
+      <div class="form-section">
+        <h2>Select Department</h2>
+        <div class="department-grid">
+          @for (dept of departments(); track dept.id) {
+            <div class="department-card" 
+                 [class.selected]="selectedDepartment() === dept.id"
+                 (click)="selectDepartment(dept.id)">
+              <div class="department-icon">🏥</div>
+              <h3>{{dept.name}}</h3>
+              <p>{{dept.description}}</p>
+            </div>
+          }
+        </div>
+      </div>
+
+      @if (clinicians().length > 0) {
+        <div class="form-section">
+          <h2>Select Clinician (Optional)</h2>
+          <div class="clinician-list">
+            <div class="clinician-item" 
+                 [class.selected]="selectedClinician() === ''"
+                 (click)="selectedClinician.set('')">
+              <div class="clinician-info">
+                <h3>Any Available Clinician</h3>
+                <p>I'll choose the first available slot</p>
+              </div>
+            </div>
+            @for (clinician of clinicians(); track clinician.id) {
+              <div class="clinician-item"
+                   [class.selected]="selectedClinician() === clinician.id"
+                   (click)="selectedClinician.set(clinician.id)">
+                <div class="clinician-info">
+                  <h3>Dr {{clinician.firstName}} {{clinician.lastName}}</h3>
+                  <p>{{clinician.specialty}}</p>
+                </div>
+                <div class="clinician-status">
+                  <span class="status-badge status-active">Available</span>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      <div class="action-buttons">
+        <button class="btn btn-primary" 
+                [disabled]="!selectedDepartment()"
+                (click)="loadAvailableSlots()">
+          Continue to Available Slots
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Step 2: Select Time Slot -->
+  @if (currentStep() === 2) {
+    <div class="booking-step">
+      <div class="form-section">
+        <h2>Available Time Slots</h2>
+        @if (loading()) {
+          <div class="loading-spinner">Loading available slots...</div>
+        } @else if (availableSlots().length === 0) {
+          <div class="empty-state">
+            <p>No available slots found for the selected criteria.</p>
+            <button class="btn btn-secondary" (click)="currentStep.set(1)">
+              Back to Selection
+            </button>
+          </div>
+        } @else {
+          <div class="slots-container">
+            @for (slot of availableSlots(); track slot.id) {
+              <div class="slot-card" [class.selected]="selectedSlot()?.id === slot.id" 
+                   (click)="selectSlot(slot)">
+                <div class="slot-date">
+                  <div class="date-day">{{formatDate(slot.startDateTime)}}</div>
+                  <div class="date-time">{{formatTime(slot.startDateTime)}}</div>
+                </div>
+                <div class="slot-details">
+                  <h3>Dr {{slot.clinicianName}}</h3>
+                  <p>{{slot.departmentName}}</p>
+                  <p class="slot-duration">{{formatTime(slot.startDateTime)}} - {{formatTime(slot.endDateTime)}}</p>
+                </div>
+                <div class="slot-status">
+                  <span class="status-badge status-available">Available</span>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="action-buttons">
+        <button class="btn btn-secondary" (click)="currentStep.set(1)">
+          Back
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Step 3: Confirm Details -->
+  @if (currentStep() === 3 && selectedSlot()) {
+    <div class="booking-step">
+      <div class="form-section">
+        <h2>Confirm Appointment Details</h2>
+        
+        <div class="appointment-summary">
+          <div class="summary-item">
+            <label>Date:</label>
+            <span>{{formatDate(selectedSlot()!.startDateTime)}}</span>
+          </div>
+          <div class="summary-item">
+            <label>Time:</label>
+            <span>{{formatTime(selectedSlot()!.startDateTime)}} - {{formatTime(selectedSlot()!.endDateTime)}}</span>
+          </div>
+          <div class="summary-item">
+            <label>Clinician:</label>
+            <span>Dr {{selectedSlot()!.clinicianName}}</span>
+          </div>
+          <div class="summary-item">
+            <label>Department:</label>
+            <span>{{selectedSlot()!.departmentName}}</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="appointmentType">Appointment Type</label>
+          <select id="appointmentType" [(ngModel)]="appointmentType" name="appointmentType">
+            <option value="InitialConsultation">Initial Consultation</option>
+            <option value="FollowUp">Follow Up</option>
+            <option value="Emergency">Emergency</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="notes">Additional Notes (Optional)</label>
+          <textarea id="notes" [(ngModel)]="notes" name="notes" 
+                    rows="4" placeholder="Any additional information..."></textarea>
+        </div>
+      </div>
+
+      <div class="action-buttons">
+        <button class="btn btn-secondary" (click)="backToSlots()">
+          Change Time Slot
+        </button>
+        <button class="btn btn-primary" 
+                [disabled]="loading()"
+                (click)="confirmBooking()">
+          @if (loading()) {
+            Booking...
+          } @else {
+            Confirm Booking
+          }
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Step 4: Booking Complete -->
+  @if (currentStep() === 4) {
+    <div class="booking-step success-state">
+      <div class="success-icon">✓</div>
+      <h2>Appointment Booked Successfully!</h2>
+      <p>Your appointment has been scheduled. You will receive a confirmation email shortly.</p>
+      
+      <div class="action-buttons">
+        <button class="btn btn-secondary" (click)="resetBooking()">
+          Book Another Appointment
+        </button>
+        <button class="btn btn-primary" (click)="goToDashboard()">
+          View My Appointments
+        </button>
+      </div>
+    </div>
+  }
+</div>

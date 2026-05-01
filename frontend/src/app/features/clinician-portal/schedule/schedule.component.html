@@ -1,0 +1,70 @@
+<div class="schedule-container">
+  <div class="schedule-header">
+    <h1>My Schedule</h1>
+    <div class="view-toggle">
+      <button 
+        [class.active]="viewType() === 'daily'" 
+        (click)="setViewType('daily')"
+      >
+        Daily
+      </button>
+      <button 
+        [class.active]="viewType() === 'weekly'" 
+        (click)="setViewType('weekly')"
+      >
+        Weekly
+      </button>
+    </div>
+  </div>
+
+  <div class="date-navigation">
+    <button class="nav-btn" (click)="previousPeriod()">←</button>
+    <div class="date-display">{{ getDateDisplay() }}</div>
+    <button class="nav-btn" (click)="nextPeriod()">→</button>
+    <button class="today-btn" (click)="today()">Today</button>
+  </div>
+
+  @if (loading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading schedule...</p>
+    </div>
+  } @else if (appointments().length === 0) {
+    <div class="empty-state">
+      <p>No appointments scheduled for this period</p>
+    </div>
+  } @else {
+    <div class="schedule-grid">
+      @for (apt of appointments(); track apt.id) {
+        <div class="appointment-card" [class]="getStatusClass(apt.status)">
+          <div class="appointment-header">
+            <span class="time">{{ formatTime(apt.startDateTime) }} - {{ formatTime(apt.endDateTime) }}</span>
+            <span class="status-badge" [style.background-color]="statusColors[apt.status]">
+              {{ apt.status }}
+            </span>
+          </div>
+          
+          <div class="patient-info">
+            <h3>{{ apt.patientName }}</h3>
+            <p class="nhs-number">NHS: {{ apt.patientNhsNumber }}</p>
+          </div>
+          
+          <div class="appointment-type">
+            {{ apt.appointmentType }}
+          </div>
+          
+          <div class="appointment-actions">
+            <button class="action-btn" (click)="viewAppointment(apt)">
+              View Details
+            </button>
+            @if (apt.status === 'Confirmed') {
+              <button class="action-btn dna" (click)="markAsDna(apt)">
+                Mark DNA
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

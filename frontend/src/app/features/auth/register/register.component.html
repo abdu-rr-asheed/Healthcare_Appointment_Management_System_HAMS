@@ -1,0 +1,279 @@
+<div class="register-container">
+  <div class="register-card">
+    <div class="register-header">
+      <h1>Create Your Account</h1>
+      <p>Register for the Healthcare Appointment Management System</p>
+    </div>
+
+    <form [formGroup]="registerForm" (ngSubmit)="onSubmit()" class="register-form">
+      <!-- Personal Information -->
+      <div class="form-section">
+        <h2>Personal Information</h2>
+        
+        <div class="form-row">
+          <div class="form-group half-width">
+            <label for="nhsNumber">NHS Number *</label>
+            <input
+              type="text"
+              id="nhsNumber"
+              formControlName="nhsNumber"
+              placeholder="Enter your NHS number"
+              [disabled]="loading"
+            />
+            @if (isFieldInvalid('nhsNumber')) {
+              <small class="error-message">{{ getErrorMessage('nhsNumber') }}</small>
+            }
+          </div>
+
+          <div class="form-group half-width">
+            <label for="dateOfBirth">Date of Birth *</label>
+            <input
+              type="date"
+              id="dateOfBirth"
+              formControlName="dateOfBirth"
+              [disabled]="loading"
+            />
+            @if (isFieldInvalid('dateOfBirth')) {
+              <small class="error-message">{{ getErrorMessage('dateOfBirth') }}</small>
+            }
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group half-width">
+            <label for="firstName">First Name *</label>
+            <input
+              type="text"
+              id="firstName"
+              formControlName="firstName"
+              placeholder="Your first name"
+              [disabled]="loading"
+            />
+            @if (isFieldInvalid('firstName')) {
+              <small class="error-message">{{ getErrorMessage('firstName') }}</small>
+            }
+          </div>
+
+          <div class="form-group half-width">
+            <label for="lastName">Last Name *</label>
+            <input
+              type="text"
+              id="lastName"
+              formControlName="lastName"
+              placeholder="Your last name"
+              [disabled]="loading"
+            />
+            @if (isFieldInvalid('lastName')) {
+              <small class="error-message">{{ getErrorMessage('lastName') }}</small>
+            }
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="address">Address</label>
+          <input
+            type="text"
+            id="address"
+            formControlName="address"
+            placeholder="Street address"
+            [disabled]="loading"
+          />
+        </div>
+
+        <div class="form-row">
+          <div class="form-group half-width">
+            <label for="city">City</label>
+            <input
+              type="text"
+              id="city"
+              formControlName="city"
+              placeholder="City"
+              [disabled]="loading"
+            />
+          </div>
+
+          <div class="form-group half-width">
+            <label for="postcode">Postcode</label>
+            <input
+              type="text"
+              id="postcode"
+              formControlName="postcode"
+              placeholder="e.g., SW1A 1AA"
+              [disabled]="loading"
+            />
+            @if (isFieldInvalid('postcode')) {
+              <small class="error-message">Invalid UK postcode format</small>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Contact Information -->
+      <div class="form-section">
+        <h2>Contact Information</h2>
+        
+        <div class="form-group">
+          <label for="email">Email Address *</label>
+          <input
+            type="email"
+            id="email"
+            formControlName="email"
+            placeholder="your.email@example.com"
+            [disabled]="loading"
+          />
+          @if (isFieldInvalid('email')) {
+            <small class="error-message">{{ getErrorMessage('email') }}</small>
+          }
+        </div>
+
+        <div class="form-group">
+          <label for="phoneNumber">Phone Number *</label>
+          <input
+            type="tel"
+            id="phoneNumber"
+            formControlName="phoneNumber"
+            placeholder="+44 123 456 7890"
+            [disabled]="loading"
+          />
+          @if (isFieldInvalid('phoneNumber')) {
+            <small class="error-message">{{ getErrorMessage('phoneNumber') }}</small>
+          }
+        </div>
+
+        <div class="form-row">
+          <div class="form-group half-width">
+            <label for="emergencyContactName">Emergency Contact Name</label>
+            <input
+              type="text"
+              id="emergencyContactName"
+              formControlName="emergencyContactName"
+              placeholder="Emergency contact name"
+              [disabled]="loading"
+            />
+          </div>
+
+          <div class="form-group half-width">
+            <label for="emergencyContactPhone">Emergency Contact Phone</label>
+            <input
+              type="tel"
+              id="emergencyContactPhone"
+              formControlName="emergencyContactPhone"
+              placeholder="Emergency contact phone"
+              [disabled]="loading"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Security -->
+      <div class="form-section">
+        <h2>Security</h2>
+        
+        <div class="form-group">
+          <label for="password">Password *</label>
+          <div class="password-input">
+            <input
+              [type]="showPassword ? 'text' : 'password'"
+              id="password"
+              formControlName="password"
+              placeholder="Create a strong password"
+              [disabled]="loading"
+            />
+            <button
+              type="button"
+              (click)="togglePassword('password')"
+              class="toggle-password"
+              [disabled]="loading"
+            >
+              {{ showPassword ? 'Hide' : 'Show' }}
+            </button>
+          </div>
+          
+          @if (passwordStrength > 0) {
+            <div class="password-strength">
+              <div class="strength-bar">
+                <div 
+                  class="strength-fill" 
+                  [style.width.%]="passwordStrength"
+                  [style.background-color]="passwordStrengthColor">
+                </div>
+              </div>
+              <span class="strength-text" [style.color]="passwordStrengthColor">
+                Password strength: {{ passwordStrengthText }}
+              </span>
+            </div>
+          }
+          
+          @if (isFieldInvalid('password')) {
+            <small class="error-message">{{ getErrorMessage('password') }}</small>
+          }
+        </div>
+
+        <div class="form-group">
+          <label for="confirmPassword">Confirm Password *</label>
+          <div class="password-input">
+            <input
+              [type]="showConfirmPassword ? 'text' : 'password'"
+              id="confirmPassword"
+              formControlName="confirmPassword"
+              placeholder="Confirm your password"
+              [disabled]="loading"
+            />
+            <button
+              type="button"
+              (click)="togglePassword('confirmPassword')"
+              class="toggle-password"
+              [disabled]="loading"
+            >
+              {{ showConfirmPassword ? 'Hide' : 'Show' }}
+            </button>
+          </div>
+          @if (registerForm.errors?.['passwordMismatch'] && isFieldInvalid('confirmPassword')) {
+            <small class="error-message">Passwords do not match</small>
+          }
+        </div>
+
+        <div class="form-group checkbox-group">
+          <label class="checkbox-label">
+            <input type="checkbox" formControlName="mfaEnabled" [disabled]="loading" />
+            <span>Enable Two-Factor Authentication (MFA) via SMS</span>
+          </label>
+          <small class="help-text">We'll send you a verification code via SMS when you log in</small>
+        </div>
+
+        <div class="form-group checkbox-group">
+          <label class="checkbox-label">
+            <input type="checkbox" formControlName="smsOptIn" [disabled]="loading" />
+            <span>Receive appointment reminders via SMS</span>
+          </label>
+          <small class="help-text">Get reminders 48 hours and 2 hours before your appointments</small>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="register-btn" [disabled]="loading || registerForm.invalid">
+          @if (loading) {
+            <span>Creating Account...</span>
+          } @else {
+            <span>Create Account</span>
+          }
+        </button>
+      </div>
+
+      <div class="form-footer">
+        <p>Already have an account? <a routerLink="/auth/login">Login here</a></p>
+      </div>
+    </form>
+
+    <div class="info-box">
+      <h3>Registration Information</h3>
+      <ul>
+        <li>Password must be at least 8 characters long</li>
+        <li>Include uppercase and lowercase letters, numbers, and special characters</li>
+        <li>You must be at least 16 years old to register</li>
+        <li>Your NHS number is required for verification</li>
+        <li>MFA adds an extra layer of security to your account</li>
+      </ul>
+    </div>
+  </div>
+</div>
