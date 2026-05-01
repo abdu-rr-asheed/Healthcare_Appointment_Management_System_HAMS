@@ -1,0 +1,88 @@
+<div class="reports-container">
+  <div class="page-header">
+    <h1>Reports</h1>
+    <p class="subtitle">Generate operational reports for analysis</p>
+  </div>
+
+  <div class="content-card">
+    <h2>Generate New Report</h2>
+    
+    <div class="form-row">
+      <div class="form-group">
+        <label>Report Type</label>
+        <select [(ngModel)]="formData().reportType" name="reportType">
+          @for (type of reportTypes(); track type.id) {
+            <option [value]="type.id">{{ type.name }}</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    <div class="form-row two-cols">
+      <div class="form-group">
+        <label>Start Date</label>
+        <input type="date" [(ngModel)]="formData().startDate" name="startDate" />
+      </div>
+      <div class="form-group">
+        <label>End Date</label>
+        <input type="date" [(ngModel)]="formData().endDate" name="endDate" />
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Format</label>
+        <div class="format-options">
+          <label class="radio-option">
+            <input type="radio" value="CSV" [(ngModel)]="formData().format" name="format" />
+            <span>CSV</span>
+          </label>
+          <label class="radio-option">
+            <input type="radio" value="PDF" [(ngModel)]="formData().format" name="format" />
+            <span>PDF</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <button class="generate-btn" (click)="generateReport()" [disabled]="generating()">
+      @if (generating()) {
+        <span class="spinner-small"></span>
+        Generating...
+      } @else {
+        Generate Report
+      }
+    </button>
+  </div>
+
+  @if (reportData()) {
+    <div class="content-card results-card">
+      <h2>Report Summary</h2>
+      
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value">{{ reportData()!.summary.totalBookings }}</div>
+          <div class="stat-label">Total Bookings</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ reportData()!.summary.totalCancellations }}</div>
+          <div class="stat-label">Cancellations</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ reportData()!.summary.totalDna }}</div>
+          <div class="stat-label">Did Not Attend</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ reportData()!.summary.averageUtilisation }}%</div>
+          <div class="stat-label">Utilisation</div>
+        </div>
+      </div>
+
+      @if (downloadUrl()) {
+        <button class="download-btn" (click)="downloadReport()">
+          Download {{ formData().format }}
+        </button>
+      }
+    </div>
+  }
+</div>

@@ -1,0 +1,165 @@
+<div class="availability-container">
+  <div class="page-header">
+    <h1>Availability Management</h1>
+    <p class="subtitle">Configure your working hours, leave periods, and appointment slot durations</p>
+  </div>
+
+  @if (loading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading availability settings...</p>
+    </div>
+  } @else {
+    <div class="tab-navigation">
+      <button class="tab-btn" [class.active]="activeTab() === 'schedule'" (click)="setTab('schedule')">Weekly Schedule</button>
+      <button class="tab-btn" [class.active]="activeTab() === 'leave'" (click)="setTab('leave')">Leave Periods</button>
+      <button class="tab-btn" [class.active]="activeTab() === 'slots'" (click)="setTab('slots')">Slot Configuration</button>
+    </div>
+
+    <div class="tab-content">
+      @if (activeTab() === 'schedule') {
+        <div class="schedule-section">
+          <div class="section-header">
+            <h2>Weekly Schedule</h2>
+            <p>Set your working hours for each day of the week</p>
+          </div>
+
+          <div class="schedule-grid">
+            @for (day of dayNames; track day; let i = $index) {
+              <div class="day-row" [class.disabled]="!scheduleForm()[i].isAvailable">
+                <div class="day-header">
+                  <label class="toggle-label">
+                    <input type="checkbox" [checked]="scheduleForm()[i].isAvailable" (change)="toggleDayAvailability(i)">
+                    <span class="toggle-slider"></span>
+                    <span class="day-name">{{ day }}</span>
+                  </label>
+                </div>
+                <div class="time-inputs">
+                  <input type="time" [value]="scheduleForm()[i].startTime" (input)="updateScheduleTime(i, 'startTime', $any($event.target).value)" [disabled]="!scheduleForm()[i].isAvailable">
+                  <span class="time-separator">to</span>
+                  <input type="time" [value]="scheduleForm()[i].endTime" (input)="updateScheduleTime(i, 'endTime', $any($event.target).value)" [disabled]="!scheduleForm()[i].isAvailable">
+                </div>
+              </div>
+            }
+          </div>
+
+          <div class="action-bar">
+            <button class="btn btn-primary" (click)="saveSchedule()" [disabled]="saving()">
+              {{ saving() ? 'Saving...' : 'Save Schedule' }}
+            </button>
+          </div>
+        </div>
+      }
+
+      @if (activeTab() === 'leave') {
+        <div class="leave-section">
+          <div class="section-header">
+            <h2>Leave Periods</h2>
+            <p>Add upcoming leave periods to block appointment bookings</p>
+          </div>
+
+          <div class="add-leave-form">
+            <h3>Add New Leave Period</h3>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Type</label>
+                <select [(ngModel)]="newLeave().type">
+                  @for (type of leaveTypes; track type) {
+                    <option [value]="type">{{ type }}</option>
+                  }
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Start Date</label>
+                <input type="date" [(ngModel)]="newLeave().startDate">
+              </div>
+              <div class="form-group">
+                <label>End Date</label>
+                <input type="date" [(ngModel)]="newLeave().endDate">
+              </div>
+            </div>
+            <div class="form-group full-width">
+              <label>Reason</label>
+              <input type="text" [(ngModel)]="newLeave().reason" placeholder="Optional reason">
+            </div>
+            <button class="btn btn-primary" (click)="addLeavePeriod()" [disabled]="saving()">Add Leave Period</button>
+          </div>
+
+          @if (availability()?.leavePeriods && availability()!.leavePeriods.length > 0) {
+            <div class="leave-list">
+              <h3>Upcoming Leave</h3>
+              @for (leave of availability()!.leavePeriods; track leave.leavePeriodId) {
+                <div class="leave-card">
+                  <div class="leave-info">
+                    <span class="leave-type">{{ leave.type }}</span>
+                    <span class="leave-dates">{{ formatDate(leave.startDate) }} - {{ formatDate(leave.endDate) }}</span>
+                    @if (leave.reason) { <span class="leave-reason">{{ leave.reason }}</span> }
+                  </div>
+                  <div class="leave-status">
+                    @if (leave.isApproved) { <span class="badge approved">Approved</span> } @else { <span class="badge pending">Pending</span> }
+                    <button class="btn-remove" (click)="removeLeavePeriod(leave.leavePeriodId)">x</button>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      @if (activeTab() === 'slots') {
+        <div class="slots-section">
+          <div class="section-header">
+            <h2>Slot Configuration</h2>
+            <p>Configure appointment slot durations and buffer times</p>
+          </div>
+
+          <div class="slot-config-grid">
+            @for (config of slotConfigForm(); track config.appointmentType; let i = $index) {
+              <div class="slot-config-card">
+                <h4>{{ config.appointmentType.replace(/([A-Z])/g, ' $1').trim() }}</h4>
+                <div class="config-row">
+                  <div class="config-input">
+                    <label>Duration (minutes)</label>
+                    <input type="number" min="5" max="120" [value]="config.durationMinutes" (input)="updateSlotConfig(i, 'durationMinutes', +$any($event.target).value)">
+                  </div>
+                  <div class="config-input">
+                    <label>Buffer (minutes)</label>
+                    <input type="number" min="0" max="30" [value]="config.bufferMinutes" (input)="updateSlotConfig(i, 'bufferMinutes', +$any($event.target).value)">
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+
+          <div class="action-bar">
+            <button class="btn btn-primary" (click)="saveSchedule()" [disabled]="saving()">Save Configuration</button>
+          </div>
+
+          <div class="generate-slots-section">
+            <h3>Generate Appointment Slots</h3>
+            <p>Generate available appointment slots based on your schedule</p>
+            <div class="date-range-form">
+              <div class="form-group">
+                <label>Start Date</label>
+                <input type="date" [(ngModel)]="generateDateRange().startDate">
+              </div>
+              <div class="form-group">
+                <label>End Date</label>
+                <input type="date" [(ngModel)]="generateDateRange().endDate">
+              </div>
+              <button class="btn btn-success" (click)="generateSlots()" [disabled]="generating() || !hasSchedule()">
+                {{ generating() ? 'Generating...' : 'Generate Slots' }}
+              </button>
+            </div>
+            @if (!hasSchedule()) {
+              <div class="warning-message">
+                <span class="warning-icon">⚠️</span>
+                Please configure your weekly schedule first before generating slots.
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

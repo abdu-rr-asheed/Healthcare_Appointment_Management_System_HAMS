@@ -1,0 +1,189 @@
+<div class="appointment-history-container">
+  <div class="history-header">
+    <h1>Appointment History</h1>
+    <p>View all your past and upcoming appointments</p>
+  </div>
+
+  <!-- Filter Controls -->
+  <div class="filter-section">
+    <div class="filter-controls">
+      <label for="statusFilter">Filter by Status:</label>
+      <select id="statusFilter" [(ngModel)]="filterStatus" (ngModelChange)="onStatusChange()">
+        @for (option of statusOptions; track option.value) {
+          <option [value]="option.value">{{option.label}}</option>
+        }
+      </select>
+    </div>
+    
+    <div class="appointment-count">
+      <span>{{appointments().length}} appointment{{appointments().length !== 1 ? 's' : ''}}</span>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading your appointments...</p>
+    </div>
+  }
+
+  <!-- Empty State -->
+  @else if (appointments().length === 0) {
+    <div class="empty-state">
+      <div class="empty-icon">📅</div>
+      <h2>No Appointments Found</h2>
+      <p>
+        @if (filterStatus()) {
+          You don't have any {{filterStatus()}} appointments.
+        } @else {
+          You don't have any appointments yet.
+        }
+      </p>
+      <a routerLink="/patient/booking" class="btn btn-primary">
+        Book Your First Appointment
+      </a>
+    </div>
+  }
+
+  <!-- Appointments List -->
+  @else {
+    <div class="appointments-list">
+      @for (appointment of appointments(); track appointment.id) {
+        <div class="appointment-card" 
+             [class.upcoming]="isUpcoming(appointment)"
+             [class.cancelled]="appointment.status === 'Cancelled'">
+          <div class="appointment-header">
+            <div class="appointment-status">
+              <span class="status-badge {{getStatusClass(appointment.status)}}">
+                {{getStatusLabel(appointment.status)}}
+              </span>
+            </div>
+            <div class="appointment-reference">
+              <span>Ref: {{appointment.confirmationReference}}</span>
+            </div>
+          </div>
+
+          <div class="appointment-body">
+            <div class="appointment-date-time">
+              <div class="date-box">
+                <div class="date-day">{{formatDate(appointment.startDateTime)}}</div>
+                <div class="date-time">{{formatTime(appointment.startDateTime)}}</div>
+              </div>
+            </div>
+
+            <div class="appointment-details">
+              <h3>Dr {{appointment.clinician.firstName}} {{appointment.clinician.lastName}}</h3>
+              <p class="specialty">{{appointment.clinician.specialty}}</p>
+              <p class="department">{{appointment.department.name}}</p>
+              <p class="appointment-type">Type: {{appointment.appointmentType}}</p>
+            </div>
+
+            <div class="appointment-actions">
+              <button class="btn btn-secondary" (click)="viewDetails(appointment)">
+                View Details
+              </button>
+            </div>
+          </div>
+
+          @if (appointment.notes) {
+            <div class="appointment-notes">
+              <strong>Notes:</strong> {{appointment.notes}}
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Details Modal -->
+  @if (showDetailsModal() && selectedAppointment()) {
+    <div class="modal-overlay" (click)="closeDetailsModal()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>Appointment Details</h2>
+          <button class="close-btn" (click)="closeDetailsModal()">&times;</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="detail-section">
+            <h3>Appointment Information</h3>
+            <div class="detail-row">
+              <label>Reference:</label>
+              <span>{{selectedAppointment()!.confirmationReference}}</span>
+            </div>
+            <div class="detail-row">
+              <label>Status:</label>
+              <span class="status-badge {{getStatusClass(selectedAppointment()!.status)}}">
+                {{getStatusLabel(selectedAppointment()!.status)}}
+              </span>
+            </div>
+            <div class="detail-row">
+              <label>Date:</label>
+              <span>{{formatDate(selectedAppointment()!.startDateTime)}}</span>
+            </div>
+            <div class="detail-row">
+              <label>Time:</label>
+              <span>{{formatTime(selectedAppointment()!.startDateTime)}} - {{formatTime(selectedAppointment()!.endDateTime)}}</span>
+            </div>
+            <div class="detail-row">
+              <label>Type:</label>
+              <span>{{selectedAppointment()!.appointmentType}}</span>
+            </div>
+            <div class="detail-row">
+              <label>Booked On:</label>
+              <span>{{formatDate(selectedAppointment()!.createdAt)}}</span>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <h3>Clinician Information</h3>
+            <div class="detail-row">
+              <label>Name:</label>
+              <span>Dr {{selectedAppointment()!.clinician.firstName}} {{selectedAppointment()!.clinician.lastName}}</span>
+            </div>
+            <div class="detail-row">
+              <label>Specialty:</label>
+              <span>{{selectedAppointment()!.clinician.specialty}}</span>
+            </div>
+            <div class="detail-row">
+              <label>License:</label>
+              <span>{{selectedAppointment()!.clinician.licenseNumber}}</span>
+            </div>
+            <div class="detail-row">
+              <label>Qualifications:</label>
+              <span>{{selectedAppointment()!.clinician.qualifications.join(', ')}}</span>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <h3>Department</h3>
+            <div class="detail-row">
+              <label>Department:</label>
+              <span>{{selectedAppointment()!.department.name}}</span>
+            </div>
+            <div class="detail-row">
+              <label>Description:</label>
+              <span>{{selectedAppointment()!.department.description}}</span>
+            </div>
+          </div>
+
+          @if (selectedAppointment()!.notes) {
+            <div class="detail-section">
+              <h3>Notes</h3>
+              <div class="detail-notes">
+                {{selectedAppointment()!.notes}}
+              </div>
+            </div>
+          }
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeDetailsModal()">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

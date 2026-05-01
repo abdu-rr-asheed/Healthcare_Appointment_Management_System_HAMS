@@ -1,0 +1,130 @@
+<div class="reschedule-container">
+  <div class="reschedule-header">
+    <h1>Reschedule Appointment</h1>
+    <p class="subtitle">Select a new time for your appointment</p>
+  </div>
+
+  @if (loading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading appointment details...</p>
+    </div>
+  } @else if (currentStep() === 1 || currentStep() === 2) {
+    <div class="content-card">
+      @if (appointment()) {
+        <div class="current-appointment">
+          <h2>Current Appointment</h2>
+          <div class="appointment-details">
+            <div class="detail-row">
+              <span class="label">Reference:</span>
+              <span class="value">{{ appointment()!.confirmationReference }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Date & Time:</span>
+              <span class="value">{{ getCurrentDateTime() }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Clinician:</span>
+              <span class="value">{{ appointment()!.clinicianName }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Department:</span>
+              <span class="value">{{ appointment()!.departmentName }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Type:</span>
+              <span class="value">{{ appointment()!.appointmentType }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Status:</span>
+              <span class="status-badge" [class]="appointment()!.status.toLowerCase()">
+                {{ appointment()!.status }}
+              </span>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    @if (selectedSlot()) {
+      <div class="content-card new-slot-card">
+        <h2>New Appointment Time</h2>
+        <button class="back-btn" (click)="backToSlots()">
+          ← Choose different time
+        </button>
+        <div class="selected-slot">
+          <div class="slot-date">{{ formatDate(selectedSlot()!.startDateTime) }}</div>
+          <div class="slot-time">{{ formatTime(selectedSlot()!.startDateTime) }} - {{ formatTime(selectedSlot()!.endDateTime) }}</div>
+          <div class="slot-clinician">{{ selectedSlot()!.clinicianName }}</div>
+        </div>
+
+        @if (error()) {
+          <div class="error-message">{{ error() }}</div>
+        }
+
+        <button
+          class="confirm-btn"
+          (click)="confirmReschedule()"
+          [disabled]="submitting()"
+        >
+          @if (submitting()) {
+            <span class="spinner-small"></span>
+            Rescheduling...
+          } @else {
+            Confirm Reschedule
+          }
+        </button>
+      </div>
+    } @else {
+      <div class="content-card">
+        <h2>Available Times</h2>
+        <p class="hint">Select a new time from the available slots below</p>
+
+        @if (alternativeSlots().length === 0) {
+          <div class="empty-state">
+            <p>No alternative slots available</p>
+            <p class="hint">Please try again later or contact the clinic</p>
+          </div>
+        } @else {
+          <div class="slots-grid">
+            @for (slot of alternativeSlots(); track slot.id) {
+              <button
+                class="slot-card"
+                (click)="selectSlot(slot)"
+              >
+                <div class="slot-date">{{ formatDate(slot.startDateTime) }}</div>
+                <div class="slot-time">{{ formatTime(slot.startDateTime) }}</div>
+                <div class="slot-clinician">{{ slot.clinicianName }}</div>
+              </button>
+            }
+          </div>
+        }
+      </div>
+    }
+  } @else if (currentStep() === 3) {
+    <div class="content-card success-card">
+      <div class="success-icon">✓</div>
+      <h2>Appointment Rescheduled</h2>
+      <p>Your appointment has been successfully rescheduled.</p>
+      
+      <div class="new-details">
+        <div class="detail-row">
+          <span class="label">New Date:</span>
+          <span class="value">{{ selectedSlot() ? formatDate(selectedSlot()!.startDateTime) : '' }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="label">New Time:</span>
+          <span class="value">{{ selectedSlot() ? formatTime(selectedSlot()!.startDateTime) : '' }}</span>
+        </div>
+      </div>
+
+      <p class="confirmation-note">
+        A confirmation email has been sent to your registered email address.
+      </p>
+
+      <button class="primary-btn" (click)="goToDashboard()">
+        Return to Dashboard
+      </button>
+    </div>
+  }
+</div>

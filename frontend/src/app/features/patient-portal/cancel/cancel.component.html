@@ -1,0 +1,127 @@
+<div class="cancel-container">
+  <div class="cancel-header">
+    <h1>Cancel Appointment</h1>
+    <p class="subtitle">Are you sure you want to cancel your appointment?</p>
+  </div>
+
+  @if (loading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading appointment details...</p>
+    </div>
+  } @else if (currentStep() === 1) {
+    <div class="content-card">
+      @if (appointment()) {
+        <div class="appointment-details">
+          <h2>Appointment Details</h2>
+          <div class="detail-row">
+            <span class="label">Reference:</span>
+            <span class="value">{{ appointment()!.confirmationReference }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="label">Date & Time:</span>
+            <span class="value">{{ getAppointmentDateTime() }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="label">Clinician:</span>
+            <span class="value">{{ appointment()!.clinicianName }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="label">Department:</span>
+            <span class="value">{{ appointment()!.departmentName }}</span>
+          </div>
+        </div>
+      }
+    </div>
+
+    @if (showLateWarning()) {
+      <div class="warning-banner">
+        <div class="warning-icon">!</div>
+        <div class="warning-content">
+          <h3>Late Cancellation Notice</h3>
+          <p>
+            This appointment is scheduled within {{ CANCELLATION_NOTICE_HOURS }} hours.
+            Cancellations with less than {{ CANCELLATION_NOTICE_HOURS }} hours notice may incur a fee.
+          </p>
+        </div>
+      </div>
+    }
+
+    <div class="content-card">
+      <h2>Reason for Cancellation</h2>
+      <div class="reason-options">
+        @for (r of reasons; track r.value) {
+          <label class="reason-option">
+            <input
+              type="radio"
+              name="reason"
+              [value]="r.value"
+              [checked]="reason() === r.value"
+              (change)="reason.set(r.value)"
+            />
+            <span>{{ r.label }}</span>
+          </label>
+        }
+      </div>
+
+      @if (showLateWarning()) {
+        <div class="acknowledgment">
+          <label class="checkbox-label">
+            <input
+              type="checkbox"
+              [checked]="acknowledgeLateNotice()"
+              (change)="acknowledgeLateNotice.set($any($event.target).checked)"
+            />
+            <span>I understand that late cancellations may incur a fee</span>
+          </label>
+        </div>
+      }
+
+      @if (error()) {
+        <div class="error-message">{{ error() }}</div>
+      }
+
+      <div class="actions">
+        <button class="cancel-btn" (click)="confirmCancellation()" [disabled]="submitting() || !reason()">
+          @if (submitting()) {
+            <span class="spinner-small"></span>
+            Cancelling...
+          } @else {
+            Confirm Cancellation
+          }
+        </button>
+        <button class="back-btn" (click)="goToDashboard()">Keep Appointment</button>
+      </div>
+    </div>
+  } @else if (currentStep() === 2) {
+    <div class="content-card success-card">
+      <div class="success-icon">✓</div>
+      <h2>Appointment Cancelled</h2>
+      <p>Your appointment has been successfully cancelled.</p>
+      
+      <div class="cancelled-details">
+        <div class="detail-row">
+          <span class="label">Reference:</span>
+          <span class="value">{{ appointment()!.confirmationReference }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="label">Original Date:</span>
+          <span class="value">{{ getAppointmentDateTime() }}</span>
+        </div>
+      </div>
+
+      <p class="confirmation-note">
+        A cancellation confirmation has been sent to your registered email address.
+      </p>
+
+      <p class="help-text">
+        Need to book a new appointment? 
+        <a href="/patient/booking">Book here</a>
+      </p>
+
+      <button class="primary-btn" (click)="goToDashboard()">
+        Return to Dashboard
+      </button>
+    </div>
+  }
+</div>

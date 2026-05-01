@@ -1,0 +1,110 @@
+<div class="patient-dashboard">
+  <div class="welcome-section">
+    <h1>Welcome to Your Patient Portal</h1>
+    <p>Manage your healthcare appointments with ease</p>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="quick-actions">
+    <a routerLink="/patient/booking" class="action-card">
+      <div class="action-icon">📅</div>
+      <h3>Book Appointment</h3>
+      <p>Schedule a new appointment with your preferred clinician</p>
+    </a>
+
+    <a routerLink="/patient/history" class="action-card">
+      <div class="action-icon">📋</div>
+      <h3>View History</h3>
+      <p>Access your complete appointment history</p>
+    </a>
+
+    <a routerLink="/patient/profile" class="action-card">
+      <div class="action-icon">👤</div>
+      <h3>My Profile</h3>
+      <p>Update your personal information and preferences</p>
+    </a>
+  </div>
+
+  <!-- Upcoming Appointments -->
+  <div class="appointments-section">
+    <div class="section-header">
+      <h2>Upcoming Appointments</h2>
+      <a routerLink="/patient/history" class="view-all-link">View All</a>
+    </div>
+
+    @if (loading()) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Loading appointments...</p>
+      </div>
+    } @else if (upcomingAppointments().length === 0) {
+      <div class="empty-state">
+        <div class="empty-icon">📅</div>
+        <h3>No Upcoming Appointments</h3>
+        <p>You don't have any scheduled appointments at the moment.</p>
+        <a routerLink="/patient/booking" class="btn btn-primary">
+          Book Your First Appointment
+        </a>
+      </div>
+    } @else {
+      <div class="appointments-list">
+        @for (appointment of upcomingAppointments(); track appointment.id) {
+          <div class="appointment-item">
+            <div class="appointment-date">
+              <div class="date-number">{{getAppointmentDateNumber(appointment)}}</div>
+              <div class="date-month">{{getAppointmentDateMonth(appointment)}}</div>
+              <div class="date-days">
+                @if (getDaysUntilAppointment(appointment) === 0) {
+                  Today
+                } @else if (getDaysUntilAppointment(appointment) === 1) {
+                  Tomorrow
+                } @else {
+                  {{getDaysUntilAppointment(appointment)}} days left
+                }
+              </div>
+            </div>
+
+            <div class="appointment-info">
+              <h3>Dr {{appointment.clinician.firstName}} {{appointment.clinician.lastName}}</h3>
+              <p class="specialty">{{appointment.clinician.specialty}}</p>
+              <p class="department">{{appointment.department.name}}</p>
+              <div class="appointment-time">
+                <span>🕐 {{formatTime(appointment.startDateTime)}}</span>
+                <span>•</span>
+                <span>{{formatDate(appointment.startDateTime)}}</span>
+              </div>
+            </div>
+
+            <div class="appointment-actions">
+              <!-- Actions available in future -->
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- Health Tips -->
+  <div class="health-tips">
+    <h2>Health Tips</h2>
+    <div class="tips-grid">
+      <div class="tip-card">
+        <div class="tip-icon">💧</div>
+        <h3>Stay Hydrated</h3>
+        <p>Drink at least 8 glasses of water daily for optimal health.</p>
+      </div>
+
+      <div class="tip-card">
+        <div class="tip-icon">🏃</div>
+        <h3>Stay Active</h3>
+        <p>Regular exercise helps maintain physical and mental health.</p>
+      </div>
+
+      <div class="tip-card">
+        <div class="tip-icon">😴</div>
+        <h3>Get Enough Sleep</h3>
+        <p>Aim for 7-9 hours of quality sleep each night.</p>
+      </div>
+    </div>
+  </div>
+</div>
