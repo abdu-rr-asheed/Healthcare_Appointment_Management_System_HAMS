@@ -1,0 +1,169 @@
+version: '3.8'
+
+services:
+  # Frontend - Angular application served by Nginx
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: hams-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - hams-network
+    environment:
+      - API_BASE_URL=/api
+      - SENTRY_DSN=${SENTRY_DSN}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Backend - .NET 8.0 Web API
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: hams-backend
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - hams-network
+    environment:
+      # ASP.NET Core
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+      - ASPNETCORE_URLS=http://+:8080
+      - ASPNETCORE_FORWARDEDHEADERS_ENABLED=true
+
+      # Database - PostgreSQL
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=HAMS;Username=postgres;Password=${DB_PASSWORD}
+
+      # JWT Authentication
+      - JwtSettings__SecretKey=${JWT_SECRET_KEY}
+      - JwtSettings__Issuer=${JWT_ISSUER:-HAMS}
+      - JwtSettings__Audience=${JWT_AUDIENCE:-HAMS-Patients}
+
+      # Redis
+      - Redis__ConnectionString=redis:6379
+
+      # EHR Integration
+      - Ehr__FhirBaseUrl=${EHR_FHIR_URL}
+      - Ehr__AuthToken=${EHR_AUTH_TOKEN}
+
+      # Email Notifications
+      - Notification__Email__SmtpHost=${SMTP_HOST}
+      - Notification__Email__SmtpPort=${SMTP_PORT:-587}
+      - Notification__Email__SmtpUser=${SMTP_USER}
+      - Notification__Email__SmtpPassword=${SMTP_PASSWORD}
+      - Notification__Email__FromAddress=${FROM_EMAIL}
+      - Notification__Email__UseSsl=${SMTP_USE_SSL:-true}
+
+      # SMS Notifications
+      - Notification__Sms__ProviderApiUrl=${SMS_API_URL}
+      - Notification__Sms__ApiKey=${SMS_API_KEY}
+      - Notification__Sms__SenderId=${SMS_SENDER_ID}
+
+      # Logging
+      - Serilog__WriteTo__0__Name=Console
+      - Serilog__WriteTo__0__Args__outputTemplate=[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}
+      - Serilog__MinimumLevel__Default=${LOG_LEVEL:-Information}
+    volumes:
+      - ./logs:/app/logs:rw
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Database - PostgreSQL 16
+  db:
+    image: postgres:16-alpine
+    container_name: hams-postgres
+    ports:
+      - "5432:5432"
+    networks:
+      - hams-network
+    environment:
+      - POSTGRES_DB=HAMS
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/init-scripts:/docker-entrypoint-initdb.d:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d HAMS"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=200"
+      - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "effective_cache_size=1GB"
+      - "-c"
+      - "maintenance_work_mem=64MB"
+      - "-c"
+      - "checkpoint_completion_target=0.9"
+      - "-c"
+      - "wal_buffers=16MB"
+      - "-c"
+      - "default_statistics_target=100"
+      - "-c"
+      - "random_page_cost=1.1"
+      - "-c"
+      - "effective_io_concurrency=200"
+      - "-c"
+      - "work_mem=1310kB"
+      - "-c"
+      - "min_wal_size=1GB"
+      - "-c"
+      - "max_wal_size=4GB"
+
+  # Cache - Redis (In-memory only, no persistence)
+  redis:
+    image: redis:7-alpine
+    container_name: hams-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - hams-network
+    command: ["redis-server", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+networks:
+  hams-network:
+    driver: bridge
+    name: hams-network
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  postgres-data:
+    name: hams-postgres-data
+    driver: local

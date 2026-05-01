@@ -1,0 +1,91 @@
+# ============================================
+# Stage 1: Base - Runtime Image
+# ============================================
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS base
+WORKDIR /app
+EXPOSE 8080
+EXPOSE 443
+
+# Install health check dependencies
+RUN apk add --no-cache curl
+
+# Create non-root user
+RUN addgroup -g 1000 hamsuser && \
+    adduser -D -u 1000 -G hamsuser hamsuser
+
+# ============================================
+# Stage 2: Build - SDK Image
+# ============================================
+FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
+WORKDIR /src
+
+# Set environment variables to prevent Windows-specific NuGet paths
+ENV NUGET_FALLBACK_PACKAGES="" \
+    NUGET_RESTORE_MSBUILD_ARGS=""
+
+# Copy project files and NuGet config
+COPY ["backend/HAMS.API.csproj", "backend/"]
+COPY ["backend/NuGet.Config", "backend/"]
+
+# Restore dependencies
+RUN dotnet restore "backend/HAMS.API.csproj"
+
+    # Copy all source files
+    COPY backend/ backend/
+
+    WORKDIR "/src/backend"
+
+    # Clear all NuGet cache and build artifacts to prevent Windows path issues
+    RUN rm -rf ~/.nuget/packages && \
+        rm -rf obj/*.nuget.props && \
+        rm -rf obj/project.assets.json && \
+        dotnet nuget locals all --clear
+
+    # Build project with explicit restore and environment variables
+    RUN NUGET_RESTORE_MSBUILD_ARGS="" NUGET_FALLBACK_PACKAGES="" \
+        dotnet build "HAMS.API.csproj" -c Release -o /app/build
+
+# ============================================
+# Stage 3: Publish - Optimized Build
+# ============================================
+FROM build AS publish
+RUN dotnet publish "HAMS.API.csproj" \
+    -c Release \
+    -o /app/publish \
+    /p:UseAppHost=false \
+    /p:PublishTrimmed=false \
+    /p:PublishReadyToRun=true \
+    /p:PublishSingleFile=false
+
+# ============================================
+# Stage 4: Final - Production Image
+# ============================================
+FROM base AS final
+
+# Install ICU for PostgreSQL
+RUN apk add --no-cache icu-libs
+
+# Create logs directory
+RUN mkdir -p /app/logs && \
+    chown -R hamsuser:hamsuser /app/logs
+
+# Copy published application
+COPY --from=publish /app/publish .
+
+# Set ownership
+RUN chown -R hamsuser:hamsuser /app
+
+# Switch to non-root user
+USER hamsuser
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# Set environment variables
+ENV ASPNETCORE_URLS=http://+:8080 \
+    ASPNETCORE_ENVIRONMENT=Production \
+    ASPNETCORE_FORWARDEDHEADERS_ENABLED=true
+
+# Entry point
+ENTRYPOINT ["dotnet", "HAMS.API.dll"]
