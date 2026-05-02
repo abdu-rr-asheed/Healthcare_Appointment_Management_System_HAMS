@@ -54,8 +54,8 @@ services:
       - JwtSettings__Issuer=${JWT_ISSUER:-HAMS}
       - JwtSettings__Audience=${JWT_AUDIENCE:-HAMS-Patients}
 
-      # Redis
-      - Redis__ConnectionString=redis:6379
+      # Redis - must use ConnectionStrings__ prefix to match GetConnectionString("Redis") in Program.cs
+      - ConnectionStrings__Redis=redis:6379
 
       # EHR Integration
       - Ehr__FhirBaseUrl=${EHR_FHIR_URL}

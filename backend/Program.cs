@@ -168,6 +168,13 @@ builder.Services.AddHangfireServer();
 
 builder.Services.AddScoped<ReminderJob>();
 
+// Health checks — required for docker-compose health check (GET /health)
+builder.Services.AddHealthChecks()
+    .AddNpgSql(
+        connectionString: configuration.GetConnectionString("DefaultConnection")!,
+        name: "postgres",
+        tags: new[] { "db", "ready" });
+
 var app = builder.Build();
 
 var recurringJobManager = app.Services.GetRequiredService<IRecurringJobManager>();
@@ -202,6 +209,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.UseCustomMiddleware();
+
+// Expose /health for Docker health checks — must be before MapControllers
+app.MapHealthChecks("/health");
 
 app.MapControllers();
 

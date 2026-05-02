@@ -26,14 +26,12 @@ FROM nginx:alpine
 # Copy custom nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy built Angular application
-COPY --from=build /app/dist /usr/share/nginx/html
+# Copy built Angular application (browser assets are in dist/browser/ with @angular/build)
+COPY --from=build /app/dist/browser /usr/share/nginx/html
 
-# Remove default nginx static files
-RUN rm -rf /usr/share/nginx/html/*
-
-# Copy built files to nginx html directory
-COPY --from=build /app/dist /usr/share/nginx/html
+# Fix nginx pid path: /var/run/nginx.pid is not writable by non-root.
+# Redirect to /tmp/nginx.pid (always writable) in the main nginx config.
+RUN sed -i 's|/var/run/nginx.pid|/tmp/nginx.pid|g' /etc/nginx/nginx.conf
 
 # Set proper ownership (nginx user already exists in nginx:alpine)
 RUN chown -R nginx:nginx /usr/share/nginx/html && \
