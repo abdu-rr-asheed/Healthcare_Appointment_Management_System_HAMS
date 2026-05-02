@@ -23,6 +23,18 @@ var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Configuration;
 var environment = builder.Environment;
 
+// ── Fail-fast: refuse to start if the JWT secret is missing or blank ──────
+// The secret must be supplied via the JwtSettings__SecretKey environment
+// variable (set in docker-compose.yml from .env, or via dotnet user-secrets
+// for local development). appsettings.json intentionally contains no secret.
+var jwtSecret = configuration["JwtSettings:SecretKey"];
+if (string.IsNullOrWhiteSpace(jwtSecret))
+{
+    throw new InvalidOperationException(
+        "JwtSettings:SecretKey is not configured. " +
+        "Set the JwtSettings__SecretKey environment variable or use 'dotnet user-secrets set JwtSettings:SecretKey <value>'.");
+}
+
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(configuration)
     .CreateLogger();

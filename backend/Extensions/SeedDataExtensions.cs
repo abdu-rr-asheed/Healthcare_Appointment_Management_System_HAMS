@@ -16,7 +16,11 @@ namespace HAMS.API.Extensions
 
             try
             {
-                await context.Database.EnsureCreatedAsync();
+                // MigrateAsync applies all pending EF Core migrations (creates the schema
+                // and the __EFMigrationsHistory table). EnsureCreatedAsync was replaced
+                // because it bypasses migrations entirely, making future incremental
+                // schema updates impossible.
+                await context.Database.MigrateAsync();
 
                 if (!context.Departments.Any())
                 {
