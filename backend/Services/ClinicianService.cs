@@ -25,7 +25,9 @@ namespace HAMS.API.Services
             var userIdGuid = Guid.Parse(userId);
             var clinician = await _context.Clinicians
                 .Include(c => c.User)
+                .Include(c => c.Department)
                 .Include(c => c.RegularSchedules)
+                .Include(c => c.LeavePeriods)
                 .Include(c => c.SlotConfigurations)
                 .FirstOrDefaultAsync(c => c.UserId == userIdGuid);
 
@@ -309,6 +311,7 @@ namespace HAMS.API.Services
         {
             var userIdGuid = Guid.Parse(userId);
             var clinician = await _context.Clinicians
+                .Include(c => c.Department)
                 .FirstOrDefaultAsync(c => c.UserId == userIdGuid);
 
             if (clinician == null)
@@ -322,10 +325,10 @@ namespace HAMS.API.Services
                 _ => startDate.AddDays(7)
             };
 
-            var slots = await _context.AppointmentSlots
-                .Include(s => s.Appointment)
-                    .ThenInclude(a => a != null ? a.Patient : null)
-                        .ThenInclude(p => p != null ? p.User : null)
+            var slots = await _context.AvailabilitySlots
+                .Include(s => s.Appointments)
+                    .ThenInclude(a => a.Patient)
+                        .ThenInclude(p => p.User)
                 .Where(s => s.ClinicianId == clinician.Id
                     && s.StartDateTime >= startDate
                     && s.StartDateTime < endDate)
@@ -333,28 +336,27 @@ namespace HAMS.API.Services
                 .ToListAsync();
 
             var appointments = slots
-                .Where(s => s.Appointment != null)
-                .Select(s => new ScheduledAppointmentDto
-                {
-                    Id = s.Appointment!.Id,
-                    PatientId = s.Appointment.PatientId,
-                    PatientName = s.Appointment.Patient != null
-                        ? $"{s.Appointment.Patient.User.FirstName} {s.Appointment.Patient.User.LastName}"
-                        : "Unknown",
-                    PatientNhsNumber = s.Appointment.Patient?.NhsNumber ?? string.Empty,
-                    StartDateTime = s.StartDateTime,
-                    EndDateTime = s.EndDateTime,
-                    AppointmentType = s.Appointment.Type.ToString(),
-                    Status = s.Appointment.Status.ToString(),
-                    Department = clinician.Department.Name,
-                    EhrFlags = new List<EhrFlagDto>(),
-                    HasClinicalNotes = false,
-                    IsFollowUpRequired = false,
-                    AppointmentSlotId = s.Id,
-                    SlotId = s.Id,
-                    SlotStatus = s.Status.ToString(),
-                    SlotType = s.Type
-                })
+                .SelectMany(s => s.Appointments
+                    .Where(a => a.Status != AppointmentStatus.Cancelled)
+                    .Select(a => new ScheduledAppointmentDto
+                    {
+                        Id = a.Id,
+                        PatientId = a.PatientId,
+                        PatientName = a.Patient?.User != null
+                            ? $"{a.Patient.User.FirstName} {a.Patient.User.LastName}"
+                            : "Unknown",
+                        PatientNhsNumber = a.Patient?.User?.NhsNumber ?? string.Empty,
+                        StartDateTime = s.StartDateTime,
+                        EndDateTime = s.EndDateTime,
+                        AppointmentType = a.Type.ToString(),
+                        Status = a.Status.ToString(),
+                        Department = clinician.Department?.Name ?? string.Empty,
+                        EhrFlags = new List<EhrFlagDto>(),
+                        HasClinicalNotes = false,
+                        IsFollowUpRequired = false,
+                        AppointmentSlotId = s.Id,
+                        SlotId = s.Id
+                    }))
                 .ToList();
 
             return new ScheduleResponseDto

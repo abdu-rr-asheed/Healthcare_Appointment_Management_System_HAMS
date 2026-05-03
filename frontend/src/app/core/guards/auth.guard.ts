@@ -23,12 +23,14 @@ export class AuthGuard {
     route: ActivatedRouteSnapshot,
     state: RouterStateSnapshot
   ): Observable<boolean> {
-    return this.authService.isAuthenticated$ ? of(this.authService.isAuthenticated) : of(false).pipe(
+    // isAuthenticated$ is a BehaviorSubject — always truthy as an object, so a
+    // ternary `isAuthenticated$ ? ... : ...` NEVER reaches the redirect branch.
+    // Pipe the observable directly instead.
+    return this.authService.isAuthenticated$.pipe(
       map(isAuthenticated => {
         if (isAuthenticated) {
           return true;
         }
-
         this.router.navigate(['/auth/login'], {
           queryParams: { returnUrl: state.url }
         });

@@ -35,7 +35,8 @@ export class ProfileComponent implements OnInit {
   saving = signal<boolean>(false);
   isEditing = signal<boolean>(false);
 
-  formData = signal<Partial<PatientProfile>>({});
+  // Plain mutable object — [(ngModel)] writes back directly without needing signal.set().
+  formData: Partial<PatientProfile> = {};
   error = signal<string>('');
 
   constructor() {}
@@ -49,7 +50,7 @@ export class ProfileComponent implements OnInit {
     this.apiService.get<PatientProfile>('/patients/me').subscribe({
       next: (data) => {
         this.profile.set(data);
-        this.formData.set({ ...data });
+        this.formData = { ...data };
         this.loading.set(false);
       },
       error: (error) => {
@@ -64,7 +65,7 @@ export class ProfileComponent implements OnInit {
     if (!this.isEditing()) {
       const current = this.profile();
       if (current) {
-        this.formData.set({ ...current });
+        this.formData = { ...current };
       }
     }
   }
@@ -73,10 +74,10 @@ export class ProfileComponent implements OnInit {
     this.saving.set(true);
     this.error.set('');
 
-    this.apiService.put('/patients/me', this.formData()).subscribe({
+    this.apiService.put('/patients/me', this.formData).subscribe({
       next: (data: any) => {
         this.profile.set(data as PatientProfile);
-        this.formData.set({ ...data } as PatientProfile);
+        this.formData = { ...data } as PatientProfile;
         this.isEditing.set(false);
         this.saving.set(false);
         this.notificationService.success('Success', 'Profile updated successfully');
@@ -89,9 +90,8 @@ export class ProfileComponent implements OnInit {
   }
 
   toggleSmsOptIn(): void {
-    const current = this.formData();
-    this.formData.set({ ...current, smsOptIn: !current.smsOptIn });
-    
+    this.formData = { ...this.formData, smsOptIn: !this.formData.smsOptIn };
+
     if (this.isEditing()) {
       this.saveProfile();
     }
@@ -106,7 +106,10 @@ export class ProfileComponent implements OnInit {
   }
 
   logout(): void {
-    this.authService.logout();
-    this.router.navigate(['/auth/login']);
+    // logout() returns an Observable — must subscribe to trigger the HTTP call.
+    this.authService.logout().subscribe({
+      complete: () => this.router.navigate(['/auth/login']),
+      error: () => this.router.navigate(['/auth/login'])
+    });
   }
 }

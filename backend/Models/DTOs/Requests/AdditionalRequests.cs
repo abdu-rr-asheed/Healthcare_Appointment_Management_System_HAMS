@@ -47,14 +47,9 @@ public class ClinicianRegistrationRequest
     public required string GmcNumber { get; set; }
 }
 
-public class UpdatePatientRequest
-{
-    public string? PhoneNumber { get; set; }
-    public string? Address { get; set; }
-    public string? Postcode { get; set; }
-    public string? EmergencyContactName { get; set; }
-    public string? EmergencyContactPhone { get; set; }
-}
+// UpdatePatientRequest is defined in HAMS.API.Controllers (PatientsController.cs) with the
+// fields that the endpoint actually uses (FirstName, LastName, Email, PhoneNumber, SmsOptIn).
+// The duplicate here has been removed to prevent compile ambiguity.
 
 public class GenerateSlotsRequest
 {

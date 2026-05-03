@@ -10,7 +10,7 @@
     <div class="form-row">
       <div class="form-group">
         <label>Report Type</label>
-        <select [(ngModel)]="formData().reportType" name="reportType">
+        <select [(ngModel)]="formData.reportType" name="reportType">
           @for (type of reportTypes(); track type.id) {
             <option [value]="type.id">{{ type.name }}</option>
           }
@@ -21,11 +21,11 @@
     <div class="form-row two-cols">
       <div class="form-group">
         <label>Start Date</label>
-        <input type="date" [(ngModel)]="formData().startDate" name="startDate" />
+        <input type="date" [(ngModel)]="formData.startDate" name="startDate" />
       </div>
       <div class="form-group">
         <label>End Date</label>
-        <input type="date" [(ngModel)]="formData().endDate" name="endDate" />
+        <input type="date" [(ngModel)]="formData.endDate" name="endDate" />
       </div>
     </div>
 
@@ -34,11 +34,11 @@
         <label>Format</label>
         <div class="format-options">
           <label class="radio-option">
-            <input type="radio" value="CSV" [(ngModel)]="formData().format" name="format" />
+            <input type="radio" value="CSV" [(ngModel)]="formData.format" name="format" />
             <span>CSV</span>
           </label>
           <label class="radio-option">
-            <input type="radio" value="PDF" [(ngModel)]="formData().format" name="format" />
+            <input type="radio" value="PDF" [(ngModel)]="formData.format" name="format" />
             <span>PDF</span>
           </label>
         </div>
@@ -80,7 +80,7 @@
 
       @if (downloadUrl()) {
         <button class="download-btn" (click)="downloadReport()">
-          Download {{ formData().format }}
+          Download {{ formData.format }}
         </button>
       }
     </div>

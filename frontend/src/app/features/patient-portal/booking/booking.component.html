@@ -156,7 +156,9 @@
 
         <div class="form-group">
           <label for="appointmentType">Appointment Type</label>
-          <select id="appointmentType" [(ngModel)]="appointmentType" name="appointmentType">
+          <select id="appointmentType"
+                  [ngModel]="appointmentType()" (ngModelChange)="appointmentType.set($event)"
+                  name="appointmentType">
             <option value="InitialConsultation">Initial Consultation</option>
             <option value="FollowUp">Follow Up</option>
             <option value="Emergency">Emergency</option>
@@ -165,8 +167,9 @@
 
         <div class="form-group">
           <label for="notes">Additional Notes (Optional)</label>
-          <textarea id="notes" [(ngModel)]="notes" name="notes" 
-                    rows="4" placeholder="Any additional information..."></textarea>
+          <textarea id="notes"
+                    [ngModel]="notes()" (ngModelChange)="notes.set($event)"
+                    name="notes" rows="4" placeholder="Any additional information..."></textarea>
         </div>
       </div>
 

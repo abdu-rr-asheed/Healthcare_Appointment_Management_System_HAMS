@@ -92,31 +92,52 @@ namespace HAMS.API.Controllers
         {
             try
             {
+                // If ExportReportAsync previously wrote a temp file for this report ID, serve it.
+                var tempPath = Path.Combine(Path.GetTempPath(), "hams-reports", $"{id}.csv");
+                if (System.IO.File.Exists(tempPath))
+                {
+                    var fileBytes = await System.IO.File.ReadAllBytesAsync(tempPath);
+                    return File(fileBytes, "text/csv; charset=utf-8", $"report_{id}.csv");
+                }
+
+                // Fallback: generate a live CSV of all appointments.
                 var appointments = await _context.Appointments
-                    .Include(a => a.Patient)
-                    .Include(a => a.Patient.User)
-                    .Include(a => a.Slot)
-                    .Include(a => a.Slot!.Clinician)
-                    .Include(a => a.Slot.Clinician.User)
+                    .Include(a => a.Patient).ThenInclude(p => p.User)
+                    .Include(a => a.Slot).ThenInclude(s => s!.Clinician).ThenInclude(c => c.User)
                     .Include(a => a.Department)
+                    .OrderBy(a => a.Slot!.StartDateTime)
                     .ToListAsync();
 
                 var csv = new StringBuilder();
-                csv.AppendLine("ConfirmationReference,PatientName,ClinicianName,Department,DateTime,Status,Type");
+                csv.AppendLine("ConfirmationReference,PatientName,NhsNumber,ClinicianName,Department,StartDateTime,Status,Type");
 
                 foreach (var apt in appointments)
                 {
-                    csv.AppendLine($"{apt.ConfirmationReference},{apt.Patient.User.FirstName} {apt.Patient.User.LastName},{apt.Slot.Clinician.User.FirstName} {apt.Slot.Clinician.User.LastName},{apt.Department.Name},{apt.Slot.StartDateTime:yyyy-MM-dd HH:mm},{apt.Status},{apt.Type}");
+                    var patientName = apt.Patient?.User != null
+                        ? $"{apt.Patient.User.FirstName} {apt.Patient.User.LastName}" : "Unknown";
+                    var nhsNum = apt.Patient?.User?.NhsNumber ?? string.Empty;
+                    var clinicianName = apt.Slot?.Clinician?.User != null
+                        ? $"{apt.Slot.Clinician.User.FirstName} {apt.Slot.Clinician.User.LastName}" : "Unknown";
+                    var deptName = apt.Department?.Name ?? string.Empty;
+                    var startDt = apt.Slot?.StartDateTime.ToString("yyyy-MM-dd HH:mm") ?? string.Empty;
+                    csv.AppendLine($"{apt.ConfirmationReference},{EscapeCsv(patientName)},{nhsNum},{EscapeCsv(clinicianName)},{EscapeCsv(deptName)},{startDt},{apt.Status},{apt.Type}");
                 }
 
                 var bytes = Encoding.UTF8.GetBytes(csv.ToString());
-                return File(bytes, "text/csv", $"report_{id}.csv");
+                return File(bytes, "text/csv; charset=utf-8", $"report_{id}.csv");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to download report");
                 return NotFound(new ErrorResponse { Message = "Report not found" });
             }
+        }
+
+        private static string EscapeCsv(string value)
+        {
+            if (value.Contains(',') || value.Contains('"') || value.Contains('\n'))
+                return $"\"{value.Replace("\"", "\"\"")}\"";
+            return value;
         }
 
         [HttpGet("types")]

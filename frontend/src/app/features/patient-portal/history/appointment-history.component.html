@@ -8,7 +8,8 @@
   <div class="filter-section">
     <div class="filter-controls">
       <label for="statusFilter">Filter by Status:</label>
-      <select id="statusFilter" [(ngModel)]="filterStatus" (ngModelChange)="onStatusChange()">
+      <select id="statusFilter"
+              [ngModel]="filterStatus()" (ngModelChange)="filterStatus.set($event); onStatusChange()">
         @for (option of statusOptions; track option.value) {
           <option [value]="option.value">{{option.label}}</option>
         }

@@ -281,4 +281,17 @@ namespace HAMS.API.Models.DTOs.Responses
         public string Status { get; set; } = string.Empty;
         public string? Notes { get; set; }
     }
+
+    public class ClinicianListItemDto
+    {
+        public Guid Id { get; set; }
+        public Guid UserId { get; set; }
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string Specialty { get; set; } = string.Empty;
+        public Guid DepartmentId { get; set; }
+        public string DepartmentName { get; set; } = string.Empty;
+        public string LicenseNumber { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+    }
 }

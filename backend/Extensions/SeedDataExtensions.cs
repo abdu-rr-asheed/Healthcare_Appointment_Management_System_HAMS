@@ -279,6 +279,9 @@ namespace HAMS.API.Extensions
                         {
                             Id = Guid.NewGuid(),
                             UserId = patientUsers[0].Id,
+                            // Mirror NhsNumber from the User record so Patient.NhsNumber
+                            // is always populated (used in schedule/reminder queries).
+                            NhsNumber = patientUsers[0].NhsNumber,
                             Address = "123 Main Street",
                             City = "London",
                             Postcode = "SW1A 1AA",
@@ -291,6 +294,7 @@ namespace HAMS.API.Extensions
                         {
                             Id = Guid.NewGuid(),
                             UserId = patientUsers[1].Id,
+                            NhsNumber = patientUsers[1].NhsNumber,
                             Address = "45 Oak Avenue",
                             City = "Manchester",
                             Postcode = "M1 1AA",
@@ -303,6 +307,7 @@ namespace HAMS.API.Extensions
                         {
                             Id = Guid.NewGuid(),
                             UserId = patientUsers[2].Id,
+                            NhsNumber = patientUsers[2].NhsNumber,
                             Address = "78 High Street",
                             City = "Birmingham",
                             Postcode = "B1 2AA",

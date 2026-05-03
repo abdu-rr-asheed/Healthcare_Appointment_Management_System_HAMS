@@ -30,6 +30,10 @@ export const ADMIN_ROUTES: Routes = [
       {
         path: 'clinicians',
         loadComponent: () => import('./clinician-profiles/clinician-profiles.component').then(m => m.ClinicianProfilesComponent)
+      },
+      {
+        path: 'clinicians/:id/availability',
+        loadComponent: () => import('./clinician-availability/clinician-availability.component').then(m => m.ClinicianAvailabilityAdminComponent)
       }
     ]
   }

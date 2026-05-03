@@ -46,13 +46,14 @@ export class UserManagementComponent implements OnInit {
   totalCount = signal<number>(0);
   totalPages = signal<number>(0);
 
-  filters = signal({
+  // Plain mutable objects — [(ngModel)] on signal().property never writes back to the signal.
+  filters = {
     search: '',
     role: '',
     status: ''
-  });
+  };
 
-  formData = signal({
+  formData = {
     firstName: '',
     lastName: '',
     email: '',
@@ -62,7 +63,7 @@ export class UserManagementComponent implements OnInit {
     password: '',
     isActive: true,
     twoFactorEnabled: false
-  });
+  };
 
   roles = ['Patient', 'Clinician', 'Administrator'];
   statuses = [
@@ -80,10 +81,9 @@ export class UserManagementComponent implements OnInit {
     const params = new URLSearchParams();
     params.append('page', this.currentPage().toString());
     params.append('pageSize', this.pageSize().toString());
-    const f = this.filters();
-    if (f.search) params.append('search', f.search);
-    if (f.role) params.append('role', f.role);
-    if (f.status) params.append('status', f.status);
+    if (this.filters.search) params.append('search', this.filters.search);
+    if (this.filters.role) params.append('role', this.filters.role);
+    if (this.filters.status) params.append('status', this.filters.status);
     this.apiService.get<PaginatedResponse>(`/admin/users?${params}`).subscribe({
       next: (data) => {
         this.users.set(data.items);
@@ -104,7 +104,7 @@ export class UserManagementComponent implements OnInit {
   }
 
   clearFilters(): void {
-    this.filters.set({ search: '', role: '', status: '' });
+    this.filters = { search: '', role: '', status: '' };
     this.currentPage.set(1);
     this.loadUsers();
   }
@@ -125,7 +125,7 @@ export class UserManagementComponent implements OnInit {
 
   openCreateModal(): void {
     this.modalMode.set('create');
-    this.formData.set({
+    this.formData = {
       firstName: '',
       lastName: '',
       email: '',
@@ -135,14 +135,14 @@ export class UserManagementComponent implements OnInit {
       password: '',
       isActive: true,
       twoFactorEnabled: false
-    });
+    };
     this.showModal.set(true);
   }
 
   openEditModal(user: User): void {
     this.modalMode.set('edit');
     this.selectedUser.set(user);
-    this.formData.set({
+    this.formData = {
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
@@ -152,7 +152,7 @@ export class UserManagementComponent implements OnInit {
       password: '',
       isActive: user.isActive,
       twoFactorEnabled: user.twoFactorEnabled
-    });
+    };
     this.showModal.set(true);
   }
 
@@ -168,7 +168,7 @@ export class UserManagementComponent implements OnInit {
   }
 
   saveUser(): void {
-    const form = this.formData();
+    const form = this.formData;
     if (!form.firstName || !form.lastName || !form.email) {
       this.notificationService.warning('Warning', 'Please fill required fields');
       return;

@@ -43,12 +43,13 @@ export class ReportsComponent implements OnInit {
   generating = signal<boolean>(false);
   downloadUrl = signal<string>('');
 
-  formData = signal({
+  // Plain mutable object — [(ngModel)] on signal().property never writes back to the signal.
+  formData = {
     reportType: 'BookingSummary',
     startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0],
     format: 'CSV'
-  });
+  };
 
   ngOnInit(): void {
     this.loadReportTypes();
@@ -68,16 +69,16 @@ export class ReportsComponent implements OnInit {
     this.downloadUrl.set('');
 
     const request: GenerateReportRequest = {
-      reportType: this.formData().reportType,
-      startDate: this.formData().startDate,
-      endDate: this.formData().endDate,
-      format: this.formData().format
+      reportType: this.formData.reportType,
+      startDate: this.formData.startDate,
+      endDate: this.formData.endDate,
+      format: this.formData.format
     };
 
     this.apiService.post<{ reportId: string; downloadUrl: string }>('/admin/reports/generate', request).subscribe({
       next: (response) => {
         this.generating.set(false);
-        this.downloadUrl.set(`/admin/reports/${response.reportId}/download?format=${this.formData().format}`);
+        this.downloadUrl.set(`/admin/reports/${response.reportId}/download?format=${this.formData.format}`);
         
         this.apiService.get<ReportData>(`/admin/reports/${response.reportId}`).subscribe({
           next: (data) => {

@@ -44,12 +44,13 @@ export class AuditLogComponent implements OnInit {
   totalCount = signal<number>(0);
   totalPages = signal<number>(0);
 
-  filters = signal({
+  // Plain mutable object — [(ngModel)] on signal().property never writes back to the signal.
+  filters = {
     userId: '',
     action: '',
     startDate: '',
     endDate: ''
-  });
+  };
 
   actionTypes = [
     'UserLogin',
@@ -74,11 +75,10 @@ export class AuditLogComponent implements OnInit {
     params.append('page', this.currentPage().toString());
     params.append('pageSize', this.pageSize().toString());
     
-    const f = this.filters();
-    if (f.userId) params.append('userId', f.userId);
-    if (f.action) params.append('action', f.action);
-    if (f.startDate) params.append('startDate', f.startDate);
-    if (f.endDate) params.append('endDate', f.endDate);
+    if (this.filters.userId) params.append('userId', this.filters.userId);
+    if (this.filters.action) params.append('action', this.filters.action);
+    if (this.filters.startDate) params.append('startDate', this.filters.startDate);
+    if (this.filters.endDate) params.append('endDate', this.filters.endDate);
 
     this.apiService.get<PaginatedResponse>(`/admin/audit-log?${params}`).subscribe({
       next: (data) => {
@@ -99,12 +99,12 @@ export class AuditLogComponent implements OnInit {
   }
 
   clearFilters(): void {
-    this.filters.set({
+    this.filters = {
       userId: '',
       action: '',
       startDate: '',
       endDate: ''
-    });
+    };
     this.currentPage.set(1);
     this.loadAuditLog();
   }
@@ -126,12 +126,11 @@ export class AuditLogComponent implements OnInit {
   exportLog(): void {
     this.exporting.set(true);
     
-    const f = this.filters();
     let url = '/admin/audit-log/export?';
-    if (f.userId) url += `userId=${f.userId}&`;
-    if (f.action) url += `action=${f.action}&`;
-    if (f.startDate) url += `startDate=${f.startDate}&`;
-    if (f.endDate) url += `endDate=${f.endDate}&`;
+    if (this.filters.userId) url += `userId=${this.filters.userId}&`;
+    if (this.filters.action) url += `action=${this.filters.action}&`;
+    if (this.filters.startDate) url += `startDate=${this.filters.startDate}&`;
+    if (this.filters.endDate) url += `endDate=${this.filters.endDate}&`;
     
     window.open(url, '_blank');
     this.exporting.set(false);

@@ -21,7 +21,8 @@ import { NotificationService } from '../../core/services/notification.service';
             <a routerLink="/clinician/dashboard" routerLinkActive="active" class="nav-link">Dashboard</a>
             <a routerLink="/clinician/schedule" routerLinkActive="active" class="nav-link">Schedule</a>
             <a routerLink="/clinician/availability" routerLinkActive="active" class="nav-link">Availability</a>
-            <a routerLink="/clinician/clinical-notes" routerLinkActive="active" class="nav-link">Clinical Notes</a>
+            <!-- Clinical Notes removed: route is clinical-notes/:appointmentId and requires
+                 a specific appointment ID — it is navigated to from the Schedule page. -->
           </nav>
           
           <div class="user-menu">

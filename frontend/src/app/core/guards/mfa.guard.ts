@@ -1,9 +1,10 @@
 import { Injectable, inject } from '@angular/core';
-import { 
-  CanActivate, 
-  ActivatedRouteSnapshot, 
-  RouterStateSnapshot, 
-  Router 
+import {
+  CanActivate,
+  CanActivateFn,
+  ActivatedRouteSnapshot,
+  RouterStateSnapshot,
+  Router
 } from '@angular/router';
 import { Observable, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
@@ -51,3 +52,27 @@ export class MfaGuard implements CanActivate {
     return of(false);
   }
 }
+
+/**
+ * Applied to the /auth/mfa route itself.
+ * Redirects already-authenticated and MFA-verified users to their portal,
+ * so they cannot revisit the MFA page after completing the auth flow.
+ */
+export const mfaRouteGuardFn: CanActivateFn = (route, state) => {
+  const authService = inject(AuthService);
+  const router = inject(Router);
+
+  if (authService.isAuthenticated && authService.isMfaVerified()) {
+    const user = authService.currentUserValue;
+    if (user) {
+      switch (user.role) {
+        case 'Patient':      router.navigate(['/patient/dashboard']);   break;
+        case 'Clinician':    router.navigate(['/clinician/dashboard']); break;
+        case 'Administrator': router.navigate(['/admin/dashboard']);    break;
+        default:             router.navigate(['/dashboard']);
+      }
+    }
+    return false;
+  }
+  return true;
+};

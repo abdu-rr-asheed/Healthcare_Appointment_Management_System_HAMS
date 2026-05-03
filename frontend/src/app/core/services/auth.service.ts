@@ -131,6 +131,15 @@ export class AuthService {
     );
   }
 
+  resendMfa(userId: string): Observable<any> {
+    return this.apiService.post('/auth/resend-mfa', { userId }).pipe(
+      catchError(error => {
+        console.error('Resend MFA error:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
   logout(): Observable<any> {
     return this.apiService.post('/auth/logout', {}).pipe(
       tap(() => {

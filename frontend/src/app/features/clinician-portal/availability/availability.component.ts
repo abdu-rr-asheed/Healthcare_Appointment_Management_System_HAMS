@@ -68,12 +68,13 @@ export class AvailabilityComponent implements OnInit {
     }))
   );
 
-  newLeave = signal({
+  // Plain mutable objects — [(ngModel)] on signal().property never writes back to the signal.
+  newLeave = {
     startDate: '',
     endDate: '',
     reason: '',
     type: 'Annual'
-  });
+  };
 
   slotConfigForm = signal<SlotConfiguration[]>(
     APPOINTMENT_TYPES.map(type => ({
@@ -83,10 +84,10 @@ export class AvailabilityComponent implements OnInit {
     }))
   );
 
-  generateDateRange = signal({
+  generateDateRange = {
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-  });
+  };
 
   dayNames = DAY_NAMES;
   leaveTypes = ['Annual', 'Sick', 'Study', 'Other'];
@@ -178,8 +179,7 @@ export class AvailabilityComponent implements OnInit {
   }
 
   addLeavePeriod(): void {
-    const leave = this.newLeave();
-    if (!leave.startDate || !leave.endDate || !leave.reason) {
+    if (!this.newLeave.startDate || !this.newLeave.endDate || !this.newLeave.reason) {
       this.notificationService.warning('Warning', 'Please fill all leave period fields');
       return;
     }
@@ -189,7 +189,7 @@ export class AvailabilityComponent implements OnInit {
 
     const request = {
       regularSchedule: this.scheduleForm(),
-      leavePeriods: [{ ...leave, isApproved: false }],
+      leavePeriods: [{ ...this.newLeave, isApproved: false }],
       slotConfigurations: this.slotConfigForm()
     };
 
@@ -197,7 +197,7 @@ export class AvailabilityComponent implements OnInit {
       next: () => {
         this.saving.set(false);
         this.notificationService.success('Success', 'Leave period added');
-        this.newLeave.set({ startDate: '', endDate: '', reason: '', type: 'Annual' });
+        this.newLeave = { startDate: '', endDate: '', reason: '', type: 'Annual' };
         this.loadAvailability();
       },
       error: () => {
@@ -222,8 +222,7 @@ export class AvailabilityComponent implements OnInit {
   }
 
   generateSlots(): void {
-    const range = this.generateDateRange();
-    if (!range.startDate || !range.endDate) {
+    if (!this.generateDateRange.startDate || !this.generateDateRange.endDate) {
       this.notificationService.warning('Warning', 'Please select date range');
       return;
     }
@@ -232,8 +231,8 @@ export class AvailabilityComponent implements OnInit {
     const id = this.clinicianId();
 
     this.apiService.post<{ slotsGenerated: number; slotsBlocked: number; warnings: string[] }>(`/clinicians/${id}/slots/generate`, {
-      startDate: range.startDate,
-      endDate: range.endDate
+      startDate: this.generateDateRange.startDate,
+      endDate: this.generateDateRange.endDate
     }).subscribe({
       next: (response) => {
         this.generating.set(false);

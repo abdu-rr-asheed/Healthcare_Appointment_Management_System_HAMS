@@ -13,7 +13,6 @@ using System.Net.Security;
 using HAMS.API.Middleware;
 using HAMS.API.Jobs;
 using FluentValidation;
-using FluentValidation.AspNetCore;
 using Hangfire;
 using Hangfire.PostgreSql;
 using HAMS.API.Models.Entities;
@@ -119,13 +118,15 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.Services.AddFluentValidationAutoValidation();
+// AddFluentValidationServices calls AddFluentValidationAutoValidation AND scans the
+// assembly for all IValidator<T> implementations so validators are auto-discovered.
+builder.Services.AddFluentValidationServices();
 
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAppointmentService, AppointmentService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
-builder.Services.AddScoped<IEhrIntegrationService, EhrIntegrationService>();
+// IEhrIntegrationService is registered below via AddHttpClient — do not also call AddScoped here.
 builder.Services.AddApplicationServices();
 
 // Repository Pattern - Phase 1
@@ -142,20 +143,10 @@ builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 
 builder.Services.AddHttpClient<IEhrIntegrationService>(client =>
 {
-    var fhirBaseUrl = configuration["Ehr:FhirBaseUrl"] ?? "https://ehr.mockserver.local/fhir";
+    // Config key must match EhrSettings section in appsettings.json / docker-compose env var EhrSettings__FhirBaseUrl
+    var fhirBaseUrl = configuration["EhrSettings:FhirBaseUrl"] ?? "https://ehr.mockserver.local/fhir";
     client.BaseAddress = new Uri(fhirBaseUrl);
     client.DefaultRequestHeaders.Add("Accept", "application/fhir+json");
-
-    var handler = new SocketsHttpHandler
-    {
-        SslOptions = new System.Net.Security.SslClientAuthenticationOptions
-        {
-            RemoteCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) =>
-            {
-                return sslPolicyErrors == System.Net.Security.SslPolicyErrors.None;
-            }
-        }
-    };
 });
 
 builder.Services.AddEndpointsApiExplorer();

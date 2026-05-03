@@ -63,7 +63,7 @@
             <div class="form-row">
               <div class="form-group">
                 <label>Type</label>
-                <select [(ngModel)]="newLeave().type">
+                <select [(ngModel)]="newLeave.type">
                   @for (type of leaveTypes; track type) {
                     <option [value]="type">{{ type }}</option>
                   }
@@ -71,16 +71,16 @@
               </div>
               <div class="form-group">
                 <label>Start Date</label>
-                <input type="date" [(ngModel)]="newLeave().startDate">
+                <input type="date" [(ngModel)]="newLeave.startDate">
               </div>
               <div class="form-group">
                 <label>End Date</label>
-                <input type="date" [(ngModel)]="newLeave().endDate">
+                <input type="date" [(ngModel)]="newLeave.endDate">
               </div>
             </div>
             <div class="form-group full-width">
               <label>Reason</label>
-              <input type="text" [(ngModel)]="newLeave().reason" placeholder="Optional reason">
+              <input type="text" [(ngModel)]="newLeave.reason" placeholder="Optional reason">
             </div>
             <button class="btn btn-primary" (click)="addLeavePeriod()" [disabled]="saving()">Add Leave Period</button>
           </div>
@@ -141,11 +141,11 @@
             <div class="date-range-form">
               <div class="form-group">
                 <label>Start Date</label>
-                <input type="date" [(ngModel)]="generateDateRange().startDate">
+                <input type="date" [(ngModel)]="generateDateRange.startDate">
               </div>
               <div class="form-group">
                 <label>End Date</label>
-                <input type="date" [(ngModel)]="generateDateRange().endDate">
+                <input type="date" [(ngModel)]="generateDateRange.endDate">
               </div>
               <button class="btn btn-success" (click)="generateSlots()" [disabled]="generating() || !hasSchedule()">
                 {{ generating() ? 'Generating...' : 'Generate Slots' }}

@@ -421,7 +421,7 @@ namespace HAMS.API.Controllers
                 _context.ClinicalNotes.Add(note);
                 await _context.SaveChangesAsync();
 
-                var clinicianUser = await _context.Users.FindAsync(userId);
+                var clinicianUser = await _context.Users.FindAsync(Guid.Parse(userId));
                 var result = new ClinicalNoteResponseDto
                 {
                     Id = note.Id,
@@ -483,7 +483,7 @@ namespace HAMS.API.Controllers
 
                 await _context.SaveChangesAsync();
 
-                var clinicianUser = await _context.Users.FindAsync(userId);
+                var clinicianUser = await _context.Users.FindAsync(Guid.Parse(userId));
                 var result = new ClinicalNoteResponseDto
                 {
                     Id = note.Id,

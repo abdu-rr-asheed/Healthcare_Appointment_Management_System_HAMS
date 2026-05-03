@@ -28,7 +28,7 @@
       <form (ngSubmit)="saveNote()">
         <div class="form-group">
           <label>Consultation Type</label>
-          <select [(ngModel)]="formData().consultationType" name="consultationType">
+          <select [(ngModel)]="formData.consultationType" name="consultationType">
             @for (type of consultationTypes; track type) {
               <option [value]="type">{{ type }}</option>
             }
@@ -38,7 +38,7 @@
         <div class="form-group">
           <label>Clinical Notes</label>
           <textarea
-            [(ngModel)]="formData().content"
+            [(ngModel)]="formData.content"
             name="content"
             rows="4"
             placeholder="Enter clinical notes..."
@@ -49,7 +49,7 @@
         <div class="form-group">
           <label>Findings</label>
           <textarea
-            [(ngModel)]="formData().findings"
+            [(ngModel)]="formData.findings"
             name="findings"
             rows="3"
             placeholder="Clinical findings..."
@@ -59,7 +59,7 @@
         <div class="form-group">
           <label>Recommendations</label>
           <textarea
-            [(ngModel)]="formData().recommendations"
+            [(ngModel)]="formData.recommendations"
             name="recommendations"
             rows="3"
             placeholder="Recommendations..."
@@ -68,12 +68,12 @@
 
         <div class="form-group checkbox-group">
           <label>
-            <input type="checkbox" [(ngModel)]="formData().isPrivate" name="isPrivate" />
+            <input type="checkbox" [(ngModel)]="formData.isPrivate" name="isPrivate" />
             <span>Private (not visible to patient)</span>
           </label>
         </div>
 
-        <button type="submit" class="save-btn" [disabled]="saving() || !formData().content">
+        <button type="submit" class="save-btn" [disabled]="saving() || !formData.content">
           @if (saving()) {
             <span class="spinner-small"></span>
             Saving...

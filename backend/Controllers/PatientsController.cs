@@ -88,7 +88,7 @@ namespace HAMS.API.Controllers
                     return NotFound(new ErrorResponse { Message = "Patient not found" });
                 }
 
-                var user = await _context.Users.FindAsync(userId);
+                var user = await _context.Users.FindAsync(Guid.Parse(userId));
                 if (user != null)
                 {
                     if (!string.IsNullOrEmpty(request.FirstName))

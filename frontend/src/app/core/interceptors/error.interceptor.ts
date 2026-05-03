@@ -6,32 +6,26 @@ import {
   HttpInterceptor,
   HttpErrorResponse
 } from '@angular/common/http';
-import { Observable, throwError, timer } from 'rxjs';
-import { retryWhen, delay, scan, mergeMap } from 'rxjs/operators';
+import { Observable, throwError } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 
+/**
+ * Handles HTTP error responses globally — normalises errors and re-throws.
+ * Retry logic has been removed from here; it lives exclusively in RetryInterceptor
+ * which uses the modern RxJS 7+ retry() operator. Having duplicate retry logic
+ * in both interceptors caused requests to be retried up to 9 times (3 × 3).
+ */
 @Injectable()
 export class ErrorInterceptor implements HttpInterceptor {
   constructor() {}
 
   intercept(request: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
     return next.handle(request).pipe(
-      retryWhen(errors =>
-        errors.pipe(
-          mergeMap((error: HttpErrorResponse, i) => {
-            const retryAttempt = i + 1;
-            
-            if (retryAttempt > 3) {
-              return throwError(() => error);
-            }
-
-            if (error.status === 0 || error.status >= 500) {
-              return timer(1000 * retryAttempt);
-            }
-
-            return throwError(() => error);
-          })
-        )
-      )
+      catchError((error: HttpErrorResponse) => {
+        // Re-throw so RetryInterceptor (earlier in the chain) can retry transient
+        // errors, and so individual components / services receive the error.
+        return throwError(() => error);
+      })
     );
   }
 }

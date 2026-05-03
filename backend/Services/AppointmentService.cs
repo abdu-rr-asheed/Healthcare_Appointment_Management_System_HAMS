@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using HAMS.API.Data;
 using HAMS.API.Models.DTOs.Requests;
@@ -55,45 +56,56 @@ namespace HAMS.API.Services
                 throw new UnauthorizedAccessException("Patient not found");
             }
 
-            var slot = await _context.AvailabilitySlots
-                .Include(s => s.Clinician)
-                .Include(s => s.Clinician.User)
-                .Include(s => s.Department)
-                .FirstOrDefaultAsync(s => s.Id == request.SlotId && s.IsAvailable);
+            // Wrap double-booking check and insert in a serializable transaction to
+            // eliminate the race condition where two concurrent requests pass the
+            // AnyAsync check and both proceed to create an appointment on the same slot.
+            var executionStrategy = _context.Database.CreateExecutionStrategy();
 
-            if (slot == null)
+            Appointment appointment = null!;
+            AvailabilitySlot slot = null!;
+
+            await executionStrategy.ExecuteAsync(async () =>
             {
-                throw new Exception("Slot not available");
-            }
+                await using var transaction = await _context.Database.BeginTransactionAsync(
+                    System.Data.IsolationLevel.Serializable);
 
-            var existingAppointment = await _context.Appointments
-                .AnyAsync(a => a.SlotId == request.SlotId && a.Status != AppointmentStatus.Cancelled);
+                slot = await _context.AvailabilitySlots
+                    .Include(s => s.Clinician)
+                    .Include(s => s.Clinician.User)
+                    .Include(s => s.Department)
+                    .FirstOrDefaultAsync(s => s.Id == request.SlotId && s.IsAvailable)
+                    ?? throw new Exception("Slot not available");
 
-            if (existingAppointment)
-            {
-                throw new Exception("Slot already booked");
-            }
+                var alreadyBooked = await _context.Appointments
+                    .AnyAsync(a => a.SlotId == request.SlotId && a.Status != AppointmentStatus.Cancelled);
 
-            var confirmationReference = GenerateConfirmationReference();
+                if (alreadyBooked)
+                    throw new Exception("Slot already booked");
 
-            var appointment = new Appointment
-            {
-                Id = Guid.NewGuid(),
-                ConfirmationReference = confirmationReference,
-                PatientId = user.Patient.Id,
-                SlotId = slot.Id,
-                Type = Enum.Parse<AppointmentType>(request.AppointmentType),
-                Notes = request.Notes,
-                Status = AppointmentStatus.Confirmed,
-                CreatedAt = DateTime.UtcNow
-            };
+                var confirmationReference = GenerateConfirmationReference();
 
-            _context.Appointments.Add(appointment);
+                appointment = new Appointment
+                {
+                    Id = Guid.NewGuid(),
+                    ConfirmationReference = confirmationReference,
+                    PatientId = user.Patient!.Id,
+                    ClinicianId = slot.ClinicianId,
+                    DepartmentId = slot.DepartmentId,
+                    SlotId = slot.Id,
+                    Type = Enum.Parse<AppointmentType>(request.AppointmentType),
+                    Notes = request.Notes,
+                    Status = AppointmentStatus.Confirmed,
+                    CreatedAt = DateTime.UtcNow
+                };
 
-            slot.IsAvailable = false;
-            _context.AvailabilitySlots.Update(slot);
+                _context.Appointments.Add(appointment);
 
-            await _context.SaveChangesAsync();
+                slot.IsAvailable = false;
+                _context.AvailabilitySlots.Update(slot);
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            });
 
             await _auditService.LogAsync(
                 userId,
@@ -434,17 +446,19 @@ namespace HAMS.API.Services
             };
         }
 
-        private string GenerateConfirmationReference()
+        private static string GenerateConfirmationReference()
         {
-            var chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-            var random = new Random();
+            const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
             var result = new char[10];
-
+            // Use rejection sampling to eliminate modulo bias
+            var buf = new byte[1];
             for (int i = 0; i < result.Length; i++)
             {
-                result[i] = chars[random.Next(chars.Length)];
+                byte b;
+                do { RandomNumberGenerator.Fill(buf); b = buf[0]; }
+                while (b >= 256 - (256 % chars.Length));
+                result[i] = chars[b % chars.Length];
             }
-
             return new string(result);
         }
     }

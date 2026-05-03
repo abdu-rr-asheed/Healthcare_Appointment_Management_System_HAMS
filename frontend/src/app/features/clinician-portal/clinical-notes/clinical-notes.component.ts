@@ -53,13 +53,14 @@ export class ClinicalNotesComponent implements OnInit {
 
   appointmentId = signal<string>('');
 
-  formData = signal({
+  // Plain mutable object — [(ngModel)] on signal().property never writes back to the signal.
+  formData = {
     content: '',
     consultationType: 'InitialConsultation',
     findings: '',
     recommendations: '',
     isPrivate: false
-  });
+  };
 
   consultationTypes = [
     'InitialConsultation',
@@ -108,17 +109,17 @@ export class ClinicalNotesComponent implements OnInit {
     
     this.apiService.post<ClinicalNote>(
       `/appointments/${appointmentId}/clinical-notes`,
-      this.formData()
+      this.formData
     ).subscribe({
       next: (note) => {
         this.notes.update(current => [note, ...current]);
-        this.formData.set({
+        this.formData = {
           content: '',
           consultationType: 'InitialConsultation',
           findings: '',
           recommendations: '',
           isPrivate: false
-        });
+        };
         this.saving.set(false);
         this.notificationService.success('Success', 'Clinical note saved');
       },

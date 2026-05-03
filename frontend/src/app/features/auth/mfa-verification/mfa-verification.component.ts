@@ -150,8 +150,8 @@ export class MfaVerificationComponent implements OnInit {
     if (this.loading || !this.canResend) return;
 
     this.loading = true;
-    
-    this.authService.login({ nhsNumber: '', password: '' }).subscribe({
+
+    this.authService.resendMfa(this.userId).subscribe({
       next: () => {
         this.notificationService.success('Code Resent', 'A new verification code has been sent to your phone');
         this.startCountdown();

@@ -55,8 +55,8 @@ namespace HAMS.API.Jobs
                         message,
                         appointment.Id);
 
+                    // Mark flag in-memory; SaveChangesAsync is called once after the loop
                     appointment.ReminderSent48Hour = true;
-                    await _context.SaveChangesAsync();
                     sentCount++;
 
                     _logger.LogInformation(
@@ -71,6 +71,10 @@ namespace HAMS.API.Jobs
                         appointment.Id);
                 }
             }
+
+            // Single SaveChangesAsync after the loop avoids N+1 round-trips to the DB.
+            if (sentCount > 0)
+                await _context.SaveChangesAsync();
 
             _logger.LogInformation("Completed 48-hour reminder job. Sent {Count} reminders", sentCount);
         }
@@ -108,8 +112,8 @@ namespace HAMS.API.Jobs
                         message,
                         appointment.Id);
 
+                    // Mark flag in-memory; SaveChangesAsync is called once after the loop
                     appointment.ReminderSent2Hour = true;
-                    await _context.SaveChangesAsync();
                     sentCount++;
 
                     _logger.LogInformation(
@@ -124,6 +128,10 @@ namespace HAMS.API.Jobs
                         appointment.Id);
                 }
             }
+
+            // Single SaveChangesAsync after the loop avoids N+1 round-trips to the DB.
+            if (sentCount > 0)
+                await _context.SaveChangesAsync();
 
             _logger.LogInformation("Completed 2-hour reminder job. Sent {Count} reminders", sentCount);
         }

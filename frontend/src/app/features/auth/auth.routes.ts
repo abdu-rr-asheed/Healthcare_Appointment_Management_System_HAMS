@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { mfaRouteGuardFn } from '../../core/guards/mfa.guard';
 
 export const AUTH_ROUTES: Routes = [
   {
@@ -16,6 +17,7 @@ export const AUTH_ROUTES: Routes = [
   },
   {
     path: 'mfa',
+    canActivate: [mfaRouteGuardFn],
     loadComponent: () => import('./mfa-verification/mfa-verification.component').then(m => m.MfaVerificationComponent)
   },
   {

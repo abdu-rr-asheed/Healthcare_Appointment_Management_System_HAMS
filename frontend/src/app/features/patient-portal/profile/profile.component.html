@@ -21,7 +21,7 @@
             <input
               type="text"
               id="firstName"
-              [(ngModel)]="formData().firstName"
+              [(ngModel)]="formData.firstName"
               name="firstName"
               [disabled]="saving()"
             />
@@ -32,7 +32,7 @@
             <input
               type="text"
               id="lastName"
-              [(ngModel)]="formData().lastName"
+              [(ngModel)]="formData.lastName"
               name="lastName"
               [disabled]="saving()"
             />
@@ -43,7 +43,7 @@
             <input
               type="email"
               id="email"
-              [(ngModel)]="formData().email"
+              [(ngModel)]="formData.email"
               name="email"
               [disabled]="saving()"
             />
@@ -54,7 +54,7 @@
             <input
               type="tel"
               id="phoneNumber"
-              [(ngModel)]="formData().phoneNumber"
+              [(ngModel)]="formData.phoneNumber"
               name="phoneNumber"
               [disabled]="saving()"
             />

@@ -2,8 +2,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using HAMS.API.Data;
+using HAMS.API.Models.DTOs.Requests;
 using HAMS.API.Models.DTOs.Responses;
 using HAMS.API.Models.Entities;
+using HAMS.API.Services.Interfaces;
 using System.Security.Claims;
 
 namespace HAMS.API.Controllers
@@ -15,12 +17,64 @@ namespace HAMS.API.Controllers
     public class CliniciansController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly IClinicianService _clinicianService;
         private readonly ILogger<CliniciansController> _logger;
 
-        public CliniciansController(ApplicationDbContext context, ILogger<CliniciansController> logger)
+        public CliniciansController(
+            ApplicationDbContext context,
+            IClinicianService clinicianService,
+            ILogger<CliniciansController> logger)
         {
             _context = context;
+            _clinicianService = clinicianService;
             _logger = logger;
+        }
+
+        [HttpGet]
+        [Authorize(Roles = "Clinician,Administrator")]
+        [ProducesResponseType(typeof(IEnumerable<ClinicianListItemDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetClinicians(
+            [FromQuery] Guid? departmentId,
+            [FromQuery] string? specialty,
+            [FromQuery] bool? availableOnly)
+        {
+            try
+            {
+                var query = _context.Clinicians
+                    .Include(c => c.User)
+                    .Include(c => c.Department)
+                    .Where(c => c.Status == ClinicianStatus.Active)
+                    .AsQueryable();
+
+                if (departmentId.HasValue)
+                    query = query.Where(c => c.DepartmentId == departmentId.Value);
+
+                if (!string.IsNullOrEmpty(specialty))
+                    query = query.Where(c => c.Specialty.Contains(specialty));
+
+                var clinicians = await query
+                    .OrderBy(c => c.User.LastName)
+                    .Select(c => new ClinicianListItemDto
+                    {
+                        Id = c.Id,
+                        UserId = c.UserId,
+                        FirstName = c.User.FirstName,
+                        LastName = c.User.LastName,
+                        Specialty = c.Specialty,
+                        DepartmentId = c.DepartmentId,
+                        DepartmentName = c.Department != null ? c.Department.Name : string.Empty,
+                        LicenseNumber = c.LicenseNumber,
+                        Status = c.Status.ToString()
+                    })
+                    .ToListAsync();
+
+                return Ok(clinicians);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to get clinicians list");
+                return StatusCode(500, new ErrorResponse { Message = "An error occurred" });
+            }
         }
 
         [HttpGet("me")]
@@ -150,19 +204,12 @@ namespace HAMS.API.Controllers
                     return NotFound(new ErrorResponse { Message = "Clinician not found" });
                 }
 
-                var result = new ClinicianAvailabilityDto
-                {
-                    ClinicianId = clinician.Id,
-                    RegularSchedule = new List<RegularScheduleDto>(),
-                    LeavePeriods = new List<LeavePeriodDto>(),
-                    SlotConfigurations = new List<SlotConfigurationDto>
-                    {
-                        new SlotConfigurationDto { AppointmentType = "InitialConsultation", DurationMinutes = 30, BufferMinutes = 10 },
-                        new SlotConfigurationDto { AppointmentType = "FollowUp", DurationMinutes = 15, BufferMinutes = 5 }
-                    }
-                };
-
+                var result = await _clinicianService.GetAvailabilityAsync(clinician.UserId.ToString());
                 return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new ErrorResponse { Message = ex.Message });
             }
             catch (Exception ex)
             {
@@ -174,8 +221,9 @@ namespace HAMS.API.Controllers
         [HttpPut("{id}/availability")]
         [Authorize(Roles = "Clinician,Administrator")]
         [ProducesResponseType(typeof(ClinicianAvailabilityDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> UpdateClinicianAvailability(Guid id, [FromBody] UpdateAvailabilityRequest request)
+        public async Task<IActionResult> UpdateClinicianAvailability(Guid id, [FromBody] UpdateAvailabilityRequestDto request)
         {
             try
             {
@@ -186,22 +234,27 @@ namespace HAMS.API.Controllers
                 }
 
                 var clinician = await _context.Clinicians
-                    .FirstOrDefaultAsync(c => c.Id == id && c.UserId == Guid.Parse(userId));
+                    .FirstOrDefaultAsync(c => c.Id == id);
 
-                if (clinician == null && !User.IsInRole("Administrator"))
+                if (clinician == null)
+                {
+                    return NotFound(new ErrorResponse { Message = "Clinician not found" });
+                }
+
+                // Clinicians can only update their own availability; Admins can update any
+                if (clinician.UserId != Guid.Parse(userId) && !User.IsInRole("Administrator"))
                 {
                     return Forbid();
                 }
 
-                var result = new ClinicianAvailabilityDto
-                {
-                    ClinicianId = id,
-                    RegularSchedule = request.RegularSchedule ?? new List<RegularScheduleDto>(),
-                    LeavePeriods = request.LeavePeriods ?? new List<LeavePeriodDto>(),
-                    SlotConfigurations = request.SlotConfigurations ?? new List<SlotConfigurationDto>()
-                };
+                await _clinicianService.UpdateAvailabilityAsync(clinician.UserId.ToString(), request);
 
+                var result = await _clinicianService.GetAvailabilityAsync(clinician.UserId.ToString());
                 return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new ErrorResponse { Message = ex.Message });
             }
             catch (Exception ex)
             {
