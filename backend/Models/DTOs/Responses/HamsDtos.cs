@@ -112,13 +112,6 @@ namespace HAMS.API.Models.DTOs.Responses
         public int TotalPages { get; set; }
     }
 
-    public class GenerateSlotsRequest
-    {
-        public DateTime StartDate { get; set; }
-        public DateTime EndDate { get; set; }
-        public List<string> AppointmentTypes { get; set; } = new();
-    }
-
     public class GenerateSlotsResponseDto
     {
         public int SlotsGenerated { get; set; }

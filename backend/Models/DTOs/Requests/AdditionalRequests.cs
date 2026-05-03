@@ -47,9 +47,10 @@ public class ClinicianRegistrationRequest
     public required string GmcNumber { get; set; }
 }
 
-// UpdatePatientRequest is defined in HAMS.API.Controllers (PatientsController.cs) with the
-// fields that the endpoint actually uses (FirstName, LastName, Email, PhoneNumber, SmsOptIn).
-// The duplicate here has been removed to prevent compile ambiguity.
+// Note: PatientsController.cs defines a local UpdatePatientRequest (FirstName, LastName,
+// Email, PhoneNumber, SmsOptIn) used only by the PUT /api/patients/me endpoint which
+// does its own direct DB update. The service-level UpdatePatientRequest below is the
+// canonical DTO used by IPatientService, PatientService, and the FluentValidation validator.
 
 public class GenerateSlotsRequest
 {
@@ -79,6 +80,19 @@ public class GenerateSlotsRequestDto
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
     public List<string> AppointmentTypes { get; set; } = new();
+}
+
+/// <summary>
+/// Payload for PATCH /api/patients/me — updates demographic / contact fields.
+/// Used by IPatientService, PatientService, and the FluentValidation validator.
+/// </summary>
+public class UpdatePatientRequest
+{
+    public string? PhoneNumber { get; set; }
+    public string? Address { get; set; }
+    public string? Postcode { get; set; }
+    public string? EmergencyContactName { get; set; }
+    public string? EmergencyContactPhone { get; set; }
 }
 
 public class ReportRequest

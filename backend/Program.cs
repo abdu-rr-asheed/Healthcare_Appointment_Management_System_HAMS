@@ -141,7 +141,11 @@ builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
 builder.Services.AddScoped<IRepository<AuditLog>, Repository<AuditLog>>();
 builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 
-builder.Services.AddHttpClient<IEhrIntegrationService>(client =>
+// Register EhrIntegrationService as a typed HTTP client.
+// The two-type-argument overload is required: the first is the interface, the second
+// is the concrete implementation. Without EhrIntegrationService as the second argument,
+// the DI container tries to instantiate the interface directly and throws at startup.
+builder.Services.AddHttpClient<IEhrIntegrationService, EhrIntegrationService>(client =>
 {
     // Config key must match EhrSettings section in appsettings.json / docker-compose env var EhrSettings__FhirBaseUrl
     var fhirBaseUrl = configuration["EhrSettings:FhirBaseUrl"] ?? "https://ehr.mockserver.local/fhir";

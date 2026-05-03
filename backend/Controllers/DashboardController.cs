@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using HAMS.API.Data;
+using HAMS.API.Models.DTOs.Responses;
 using HAMS.API.Models.Entities;
 using System.Security.Claims;
 
@@ -134,7 +135,7 @@ namespace HAMS.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching admin dashboard data");
-                return StatusCode(500, new { message = "Failed to load dashboard data" });
+                return StatusCode(500, new ErrorResponse { Message = "Failed to load dashboard data" });
             }
         }
 
@@ -149,14 +150,14 @@ namespace HAMS.API.Controllers
             {
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(userId))
-                    return Unauthorized(new { message = "User not identified" });
+                    return Unauthorized(new ErrorResponse { Message = "User not identified" });
 
                 var clinician = await _context.Clinicians
                     .Include(c => c.User)
                     .FirstOrDefaultAsync(c => c.UserId == Guid.Parse(userId));
 
                 if (clinician == null)
-                    return NotFound(new { message = "Clinician profile not found" });
+                    return NotFound(new ErrorResponse { Message = "Clinician profile not found" });
 
                 var now        = DateTime.UtcNow;
                 var todayStart = now.Date;
@@ -280,7 +281,7 @@ namespace HAMS.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching clinician dashboard data");
-                return StatusCode(500, new { message = "Failed to load dashboard data" });
+                return StatusCode(500, new ErrorResponse { Message = "Failed to load dashboard data" });
             }
         }
     }

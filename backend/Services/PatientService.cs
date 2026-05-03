@@ -1,4 +1,5 @@
 using HAMS.API.Data;
+using HAMS.API.Models.DTOs.Requests;
 using HAMS.API.Models.DTOs.Responses;
 using HAMS.API.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;

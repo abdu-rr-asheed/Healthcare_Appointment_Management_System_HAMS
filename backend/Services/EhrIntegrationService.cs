@@ -62,10 +62,10 @@ namespace HAMS.API.Services
 
         private void ConfigureHttpClient()
         {
-            _httpClient.BaseAddress = new Uri(_configuration["Ehr:FhirBaseUrl"] ?? FHIR_BASE_URL);
+            _httpClient.BaseAddress = new Uri(_configuration["EhrSettings:FhirBaseUrl"] ?? FHIR_BASE_URL);
             _httpClient.DefaultRequestHeaders.Add("Accept", "application/fhir+json");
 
-            var authToken = _configuration["Ehr:AuthToken"];
+            var authToken = _configuration["EhrSettings:AuthToken"];
             if (!string.IsNullOrEmpty(authToken))
             {
                 _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {authToken}");

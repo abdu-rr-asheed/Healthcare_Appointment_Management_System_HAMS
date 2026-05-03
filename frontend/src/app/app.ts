@@ -1,12 +1,12 @@
 import { Component, inject, OnInit } from '@angular/core';
-import { RouterOutlet, RouterLink } from '@angular/router';
-import { AsyncPipe, JsonPipe } from '@angular/common';
+import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { AsyncPipe } from '@angular/common';
 import { AuthService } from './core/services/auth.service';
 import { NotificationService } from './core/services/notification.service';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, AsyncPipe],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, AsyncPipe],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })

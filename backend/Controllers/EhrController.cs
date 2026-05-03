@@ -1,3 +1,4 @@
+using HAMS.API.Models.DTOs.Responses;
 using HAMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -26,7 +27,7 @@ namespace HAMS.API.Controllers
         {
             if (string.IsNullOrWhiteSpace(nhsNumber) || nhsNumber.Length != 10)
             {
-                return BadRequest(new { message = "Invalid NHS number. Must be 10 digits." });
+                return BadRequest(new ErrorResponse { Message = "Invalid NHS number. Must be 10 digits." });
             }
 
             try
@@ -34,14 +35,14 @@ namespace HAMS.API.Controllers
                 var patient = await _ehrService.GetPatientByNhsNumberAsync(nhsNumber);
                 if (patient == null)
                 {
-                    return NotFound(new { message = "Patient not found in EHR system." });
+                    return NotFound(new ErrorResponse { Message = "Patient not found in EHR system." });
                 }
                 return Ok(patient);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching patient {NhsNumber} from EHR", nhsNumber);
-                return StatusCode(503, new { message = "EHR service unavailable." });
+                return StatusCode(503, new ErrorResponse { Message = "EHR service unavailable." });
             }
         }
 
@@ -51,7 +52,7 @@ namespace HAMS.API.Controllers
         {
             if (string.IsNullOrWhiteSpace(nhsNumber) || nhsNumber.Length != 10)
             {
-                return BadRequest(new { message = "Invalid NHS number." });
+                return BadRequest(new ErrorResponse { Message = "Invalid NHS number." });
             }
 
             try
@@ -62,7 +63,7 @@ namespace HAMS.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching medical history for {NhsNumber}", nhsNumber);
-                return StatusCode(503, new { message = "EHR service unavailable." });
+                return StatusCode(503, new ErrorResponse { Message = "EHR service unavailable." });
             }
         }
 
@@ -72,7 +73,7 @@ namespace HAMS.API.Controllers
         {
             if (string.IsNullOrWhiteSpace(nhsNumber) || nhsNumber.Length != 10)
             {
-                return BadRequest(new { message = "Invalid NHS number." });
+                return BadRequest(new ErrorResponse { Message = "Invalid NHS number." });
             }
 
             try
@@ -83,7 +84,7 @@ namespace HAMS.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching allergies for {NhsNumber}", nhsNumber);
-                return StatusCode(503, new { message = "EHR service unavailable." });
+                return StatusCode(503, new ErrorResponse { Message = "EHR service unavailable." });
             }
         }
 
@@ -93,7 +94,7 @@ namespace HAMS.API.Controllers
         {
             if (string.IsNullOrWhiteSpace(nhsNumber) || nhsNumber.Length != 10)
             {
-                return BadRequest(new { message = "Invalid NHS number." });
+                return BadRequest(new ErrorResponse { Message = "Invalid NHS number." });
             }
 
             try
@@ -104,7 +105,7 @@ namespace HAMS.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching medications for {NhsNumber}", nhsNumber);
-                return StatusCode(503, new { message = "EHR service unavailable." });
+                return StatusCode(503, new ErrorResponse { Message = "EHR service unavailable." });
             }
         }
 
@@ -114,7 +115,7 @@ namespace HAMS.API.Controllers
         {
             if (string.IsNullOrWhiteSpace(request.NhsNumber) || request.NhsNumber.Length != 10)
             {
-                return BadRequest(new { message = "Invalid NHS number." });
+                return BadRequest(new ErrorResponse { Message = "Invalid NHS number." });
             }
 
             try
@@ -125,7 +126,7 @@ namespace HAMS.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error syncing patient {NhsNumber}", request.NhsNumber);
-                return StatusCode(503, new { message = "EHR sync failed." });
+                return StatusCode(503, new ErrorResponse { Message = "EHR sync failed." });
             }
         }
 

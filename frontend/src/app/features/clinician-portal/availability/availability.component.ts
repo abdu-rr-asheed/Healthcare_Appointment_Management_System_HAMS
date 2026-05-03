@@ -213,7 +213,10 @@ export class AvailabilityComponent implements OnInit {
 
     this.apiService.delete(`/clinicians/${clinicianId}/availability/leave/${leaveId}`).subscribe({
       next: () => {
-        this.leavePeriods.update(periods => periods.filter(p => p.leavePeriodId !== leaveId));
+        this.availability.update(data => {
+          if (!data) return data;
+          return { ...data, leavePeriods: data.leavePeriods.filter((p: LeavePeriod) => p.leavePeriodId !== leaveId) };
+        });
         this.notificationService.success('Success', 'Leave period removed');
       },
       error: () => {

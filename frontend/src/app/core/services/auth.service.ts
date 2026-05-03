@@ -218,21 +218,9 @@ export class AuthService {
     this.isAuthenticatedSubject.next(false);
   }
 
-  get currentUserValue(): User | null {
-    return this.currentUserSubject.value;
-  }
-
-  get isAuthenticated(): boolean {
-    return this.isAuthenticatedSubject.value;
-  }
-
   isMfaEnabled(): boolean {
     const user = this.currentUserSubject.value;
     return user?.twoFactorEnabled ?? false;
-  }
-
-  isMfaVerified(): boolean {
-    return this._mfaVerified;
   }
 
   setMfaVerified(verified: boolean): void {

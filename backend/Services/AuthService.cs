@@ -19,6 +19,7 @@ namespace HAMS.API.Services
         private readonly IConfiguration _configuration;
         private readonly IAuditService _auditService;
         private readonly IDistributedCache _cache;
+        private readonly ILogger<AuthService> _logger;
 
         // Redis key prefixes and TTL constants
         private const string MfaOtpPrefix      = "mfa:otp:";      // mfa:otp:{userId}      → 6-digit code
@@ -31,12 +32,14 @@ namespace HAMS.API.Services
             ApplicationDbContext context,
             IConfiguration configuration,
             IAuditService auditService,
-            IDistributedCache cache)
+            IDistributedCache cache,
+            ILogger<AuthService> logger)
         {
             _context = context;
             _configuration = configuration;
             _auditService = auditService;
             _cache = cache;
+            _logger = logger;
         }
 
         public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
@@ -215,12 +218,12 @@ namespace HAMS.API.Services
                 // Reset any leftover attempt counter from a prior session
                 await _cache.RemoveAsync(MfaAttemptsPrefix + userId);
 
-                // TODO: replace with a real SMS dispatch once NotificationService
+                // TODO: replace with a real SMS/email dispatch once NotificationService
                 //       exposes a SendMfaSmsAsync method.
-                // For now the OTP is written to the structured log so developers
-                // can verify the flow without an SMS gateway configured.
-                // REMOVE this log line before going to production.
-                Console.WriteLine($"[MFA-OTP] userId={userId} code={otp}");
+                // Development only: OTP is written to the structured log so developers
+                // can verify the flow without an SMS gateway. This logs at Debug level
+                // so it is suppressed in Production log-level configuration.
+                _logger.LogDebug("[MFA-OTP] userId={UserId} code={Otp}", userId, otp);
 
                 return new AuthResponse
                 {
@@ -382,7 +385,7 @@ namespace HAMS.API.Services
             await _cache.RemoveAsync(attemptsKey);                          // reset failures
 
             // TODO: dispatch via real SMS/email service before production.
-            Console.WriteLine($"[MFA-OTP RESEND] userId={userId} code={otp}");
+            _logger.LogDebug("[MFA-OTP RESEND] userId={UserId} code={Otp}", userId, otp);
 
             await _auditService.LogAsync(
                 userId, $"{user.FirstName} {user.LastName}", user.Role.ToString(),

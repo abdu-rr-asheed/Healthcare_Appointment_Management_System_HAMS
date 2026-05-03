@@ -44,7 +44,7 @@ namespace HAMS.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to get departments");
-                return StatusCode(500, new { message = "An error occurred while fetching departments" });
+                return StatusCode(500, new ErrorResponse { Message = "An error occurred while fetching departments" });
             }
         }
 
@@ -79,7 +79,7 @@ namespace HAMS.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to get clinicians for department");
-                return StatusCode(500, new { message = "An error occurred while fetching clinicians" });
+                return StatusCode(500, new ErrorResponse { Message = "An error occurred while fetching clinicians" });
             }
         }
     }

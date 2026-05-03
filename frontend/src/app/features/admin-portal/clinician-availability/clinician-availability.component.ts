@@ -70,7 +70,7 @@ const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frid
           </div>
         </div>
 
-        @if (availability()!.leavePeriods?.length > 0) {
+        @if (availability()!.leavePeriods.length > 0) {
           <div class="content-card">
             <h2>Leave Periods</h2>
             <div class="leave-list">
@@ -88,7 +88,7 @@ const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frid
           </div>
         }
 
-        @if (availability()!.slotConfigurations?.length > 0) {
+        @if (availability()!.slotConfigurations.length > 0) {
           <div class="content-card">
             <h2>Slot Configuration</h2>
             <div class="slot-list">
