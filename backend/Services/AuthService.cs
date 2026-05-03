@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.IdentityModel.Tokens;
 using HAMS.API.Data;
 using HAMS.API.Models.DTOs.Requests;
@@ -17,12 +18,25 @@ namespace HAMS.API.Services
         private readonly ApplicationDbContext _context;
         private readonly IConfiguration _configuration;
         private readonly IAuditService _auditService;
+        private readonly IDistributedCache _cache;
 
-        public AuthService(ApplicationDbContext context, IConfiguration configuration, IAuditService auditService)
+        // Redis key prefixes and TTL constants
+        private const string MfaOtpPrefix      = "mfa:otp:";      // mfa:otp:{userId}      → 6-digit code
+        private const string MfaPendingPrefix  = "mfa:pending:";   // mfa:pending:{userId}  → userId (presence = valid session)
+        private const string MfaAttemptsPrefix = "mfa:attempts:";  // mfa:attempts:{userId} → failed attempt count
+        private static readonly TimeSpan MfaTtl = TimeSpan.FromMinutes(10);
+        private const int MfaMaxAttempts = 3;
+
+        public AuthService(
+            ApplicationDbContext context,
+            IConfiguration configuration,
+            IAuditService auditService,
+            IDistributedCache cache)
         {
             _context = context;
             _configuration = configuration;
             _auditService = auditService;
+            _cache = cache;
         }
 
         public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
@@ -84,6 +98,7 @@ namespace HAMS.API.Services
             );
 
             var tokens = GenerateTokens(user);
+            await _context.SaveChangesAsync(); // persist refresh token added by GenerateTokens
             return new AuthResponse
             {
                 AccessToken = tokens.AccessToken,
@@ -124,35 +139,181 @@ namespace HAMS.API.Services
                 "Success"
             );
 
+            // When MFA is enabled, generate an OTP, store it in Redis, and
+            // return a challenge response — NO tokens are issued at this stage.
+            if (user.TwoFactorEnabled)
+            {
+                var userId = user.Id.ToString();
+                var otp = GenerateMfaOtp();
+
+                var cacheOptions = new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = MfaTtl
+                };
+
+                // OTP code — what the user must submit
+                await _cache.SetStringAsync(MfaOtpPrefix + userId, otp, cacheOptions);
+
+                // Pending-session marker — proves this userId went through password
+                // auth legitimately. VerifyMfaAsync rejects requests that lack it.
+                await _cache.SetStringAsync(MfaPendingPrefix + userId, userId, cacheOptions);
+
+                // Reset any leftover attempt counter from a prior session
+                await _cache.RemoveAsync(MfaAttemptsPrefix + userId);
+
+                // TODO: replace with a real SMS dispatch once NotificationService
+                //       exposes a SendMfaSmsAsync method.
+                // For now the OTP is written to the structured log so developers
+                // can verify the flow without an SMS gateway configured.
+                // REMOVE this log line before going to production.
+                Console.WriteLine($"[MFA-OTP] userId={userId} code={otp}");
+
+                return new AuthResponse
+                {
+                    AccessToken = null,
+                    RefreshToken = null,
+                    User = MapToUserDto(user),
+                    RequiresMfa = true,
+                    MfaUserId = userId
+                };
+            }
+
             var tokens = GenerateTokens(user);
+            await _context.SaveChangesAsync(); // persist refresh token added by GenerateTokens
             return new AuthResponse
             {
                 AccessToken = tokens.AccessToken,
                 RefreshToken = tokens.RefreshToken,
                 ExpiresAt = tokens.ExpiresAt,
                 User = MapToUserDto(user),
-                RequiresMfa = user.TwoFactorEnabled,
-                MfaUserId = user.TwoFactorEnabled ? user.Id.ToString() : null
+                RequiresMfa = false,
+                MfaUserId = null
             };
         }
 
         public async Task<AuthResponse> VerifyMfaAsync(string userId, string code)
         {
-            var user = await _context.Users.FindAsync(Guid.Parse(userId));
+            if (!Guid.TryParse(userId, out var userGuid))
+            {
+                throw new UnauthorizedAccessException("Invalid user identifier");
+            }
+
+            var user = await _context.Users.FindAsync(userGuid);
             if (user == null)
             {
                 throw new UnauthorizedAccessException("User not found");
             }
 
+            // ── 1. Check pending-session key ─────────────────────────────────────
+            // This key is only present when LoginAsync completed password auth and
+            // issued an MFA challenge. Its absence means either the session expired
+            // or the caller never went through login at all.
+            var pendingKey  = MfaPendingPrefix  + userId;
+            var otpKey      = MfaOtpPrefix      + userId;
+            var attemptsKey = MfaAttemptsPrefix + userId;
+
+            var pendingSession = await _cache.GetStringAsync(pendingKey);
+            if (pendingSession == null)
+            {
+                await _auditService.LogAsync(
+                    userId, $"{user.FirstName} {user.LastName}", user.Role.ToString(),
+                    "MfaVerify", "User", userGuid, "", "", "Failure-NoSession");
+                throw new UnauthorizedAccessException("MFA session not found or has expired. Please log in again.");
+            }
+
+            // ── 2. Retrieve stored OTP ───────────────────────────────────────────
+            var storedOtp = await _cache.GetStringAsync(otpKey);
+            if (storedOtp == null)
+            {
+                // OTP key expired (shouldn't happen if TTLs are identical, but be safe)
+                await _cache.RemoveAsync(pendingKey);
+                await _auditService.LogAsync(
+                    userId, $"{user.FirstName} {user.LastName}", user.Role.ToString(),
+                    "MfaVerify", "User", userGuid, "", "", "Failure-OtpExpired");
+                throw new UnauthorizedAccessException("MFA code has expired. Please log in again.");
+            }
+
+            // ── 3. Constant-time comparison ──────────────────────────────────────
+            // PadRight(6) ensures both byte arrays are the same length regardless
+            // of what the caller supplied, keeping comparison time constant.
+            var storedBytes   = Encoding.UTF8.GetBytes(storedOtp.PadRight(6));
+            var suppliedBytes = Encoding.UTF8.GetBytes((code ?? "").PadRight(6));
+            var codesMatch    = CryptographicOperations.FixedTimeEquals(storedBytes, suppliedBytes);
+
+            if (!codesMatch)
+            {
+                // ── 3a. Increment attempt counter ────────────────────────────────
+                var attemptsRaw = await _cache.GetStringAsync(attemptsKey);
+                var attempts = int.TryParse(attemptsRaw, out var parsed) ? parsed + 1 : 1;
+
+                if (attempts >= MfaMaxAttempts)
+                {
+                    // Too many failures — wipe the entire MFA session.
+                    // The user must start over with a fresh login.
+                    await _cache.RemoveAsync(otpKey);
+                    await _cache.RemoveAsync(pendingKey);
+                    await _cache.RemoveAsync(attemptsKey);
+
+                    await _auditService.LogAsync(
+                        userId, $"{user.FirstName} {user.LastName}", user.Role.ToString(),
+                        "MfaVerify", "User", userGuid, "", "", "Failure-LockedOut");
+                    throw new UnauthorizedAccessException(
+                        "Too many incorrect attempts. Your MFA session has been invalidated. Please log in again.");
+                }
+
+                // Persist the updated counter with the same TTL
+                await _cache.SetStringAsync(attemptsKey, attempts.ToString(),
+                    new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = MfaTtl });
+
+                await _auditService.LogAsync(
+                    userId, $"{user.FirstName} {user.LastName}", user.Role.ToString(),
+                    "MfaVerify", "User", userGuid, "", "", $"Failure-InvalidCode-Attempt{attempts}");
+                throw new UnauthorizedAccessException(
+                    $"Invalid MFA code. {MfaMaxAttempts - attempts} attempt(s) remaining.");
+            }
+
+            // ── 4. Success — invalidate all three MFA keys ───────────────────────
+            await _cache.RemoveAsync(otpKey);
+            await _cache.RemoveAsync(pendingKey);
+            await _cache.RemoveAsync(attemptsKey);
+
+            await _auditService.LogAsync(
+                userId, $"{user.FirstName} {user.LastName}", user.Role.ToString(),
+                "MfaVerify", "User", userGuid, "", "", "Success");
+
             var tokens = GenerateTokens(user);
+            await _context.SaveChangesAsync(); // persist refresh token
             return new AuthResponse
             {
                 AccessToken = tokens.AccessToken,
                 RefreshToken = tokens.RefreshToken,
                 ExpiresAt = tokens.ExpiresAt,
                 User = MapToUserDto(user),
-                RequiresMfa = false
+                RequiresMfa = false,
+                MfaUserId = null
             };
+        }
+
+        /// <summary>
+        /// Generates a cryptographically secure 6-digit numeric OTP.
+        /// Uses RandomNumberGenerator to avoid modulo bias: keeps drawing
+        /// until the value falls inside the largest multiple-of-1000000 that
+        /// fits in a uint, then takes the remainder.
+        /// </summary>
+        private static string GenerateMfaOtp()
+        {
+            const uint range = 1_000_000; // 000000–999999
+            // Largest multiple of range that fits in a uint, to avoid bias
+            const uint limit = uint.MaxValue - (uint.MaxValue % range);
+            Span<byte> buf = stackalloc byte[4];
+            uint value;
+            do
+            {
+                RandomNumberGenerator.Fill(buf);
+                value = BitConverter.ToUInt32(buf);
+            } while (value >= limit);
+
+            return (value % range).ToString("D6");
         }
 
         public async Task<AuthResponse> RefreshTokenAsync(string refreshToken)

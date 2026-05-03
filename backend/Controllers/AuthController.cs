@@ -15,11 +15,77 @@ namespace HAMS.API.Controllers
     {
         private readonly IAuthService _authService;
         private readonly ILogger<AuthController> _logger;
+        private readonly IWebHostEnvironment _env;
 
-        public AuthController(IAuthService authService, ILogger<AuthController> logger)
+        // Access token lifetime must match JwtSettings:ExpiryMinutes (60 min).
+        // Refresh token lifetime must match JwtSettings:RefreshTokenExpiryDays (7 days).
+        private static readonly TimeSpan AccessTokenMaxAge  = TimeSpan.FromMinutes(60);
+        private static readonly TimeSpan RefreshTokenMaxAge = TimeSpan.FromDays(7);
+
+        public AuthController(
+            IAuthService authService,
+            ILogger<AuthController> logger,
+            IWebHostEnvironment env)
         {
             _authService = authService;
             _logger = logger;
+            _env = env;
+        }
+
+        /// <summary>
+        /// Writes access_token and refresh_token as HttpOnly cookies and removes
+        /// the raw token strings from the response body so they never appear in JS.
+        /// </summary>
+        private void SetAuthCookies(AuthResponse result)
+        {
+            var isProduction = !_env.IsDevelopment();
+
+            // Base options shared by both cookies
+            var baseOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                // Secure=true forces HTTPS-only; disabled for plain-HTTP local dev.
+                Secure   = isProduction,
+                // Strict prevents the cookie being sent on cross-site requests in
+                // production (same-origin via nginx). Lax is used in development
+                // where the Angular dev-server and API are on different ports.
+                SameSite = isProduction ? SameSiteMode.Strict : SameSiteMode.Lax,
+                Path     = "/"
+            };
+
+            Response.Cookies.Append("access_token", result.AccessToken ?? string.Empty,
+                new CookieOptions
+                {
+                    HttpOnly = baseOptions.HttpOnly,
+                    Secure   = baseOptions.Secure,
+                    SameSite = baseOptions.SameSite,
+                    Path     = "/",
+                    MaxAge   = AccessTokenMaxAge
+                });
+
+            // Scope the refresh-token cookie to the one endpoint that needs it.
+            Response.Cookies.Append("refresh_token", result.RefreshToken ?? string.Empty,
+                new CookieOptions
+                {
+                    HttpOnly = baseOptions.HttpOnly,
+                    Secure   = baseOptions.Secure,
+                    SameSite = baseOptions.SameSite,
+                    Path     = "/api/auth/refresh-token",
+                    MaxAge   = RefreshTokenMaxAge
+                });
+
+            // Strip tokens from the JSON body — they are now in cookies only.
+            result.AccessToken  = null;
+            result.RefreshToken = null;
+        }
+
+        /// <summary>
+        /// Expires both auth cookies immediately, forcing the browser to discard them.
+        /// </summary>
+        private void ClearAuthCookies()
+        {
+            Response.Cookies.Delete("access_token",  new CookieOptions { Path = "/" });
+            Response.Cookies.Delete("refresh_token", new CookieOptions { Path = "/api/auth/refresh-token" });
         }
 
         [HttpPost("register")]
@@ -30,6 +96,11 @@ namespace HAMS.API.Controllers
             try
             {
                 var result = await _authService.RegisterAsync(request);
+                // Only set cookies when the account does not require an MFA step.
+                if (!result.RequiresMfa)
+                {
+                    SetAuthCookies(result);
+                }
                 return Ok(result);
             }
             catch (Exception ex)
@@ -47,6 +118,12 @@ namespace HAMS.API.Controllers
             try
             {
                 var result = await _authService.LoginAsync(request);
+                // MFA-required responses carry no tokens yet; cookies are set after
+                // the second factor is verified in the verify-mfa endpoint.
+                if (!result.RequiresMfa)
+                {
+                    SetAuthCookies(result);
+                }
                 return Ok(result);
             }
             catch (UnauthorizedAccessException ex)
@@ -69,6 +146,7 @@ namespace HAMS.API.Controllers
             try
             {
                 var result = await _authService.VerifyMfaAsync(request.UserId, request.Code);
+                SetAuthCookies(result);
                 return Ok(result);
             }
             catch (UnauthorizedAccessException ex)
@@ -95,6 +173,7 @@ namespace HAMS.API.Controllers
                 {
                     await _authService.LogoutAsync(userId);
                 }
+                ClearAuthCookies();
                 return Ok(new { message = "Logged out successfully" });
             }
             catch (Exception ex)
@@ -107,16 +186,26 @@ namespace HAMS.API.Controllers
         [HttpPost("refresh-token")]
         [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
-        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
+        public async Task<IActionResult> RefreshToken()
         {
             try
             {
-                var result = await _authService.RefreshTokenAsync(request.RefreshToken);
+                // Read the refresh token from the HttpOnly cookie — it is never
+                // sent in the request body since client JS cannot access it.
+                var refreshToken = Request.Cookies["refresh_token"];
+                if (string.IsNullOrEmpty(refreshToken))
+                {
+                    return Unauthorized(new ErrorResponse { Message = "No refresh token present." });
+                }
+
+                var result = await _authService.RefreshTokenAsync(refreshToken);
+                SetAuthCookies(result);
                 return Ok(result);
             }
             catch (UnauthorizedAccessException ex)
             {
                 _logger.LogWarning(ex, "Token refresh failed");
+                ClearAuthCookies(); // expired/revoked — force re-login
                 return Unauthorized(new ErrorResponse { Message = ex.Message });
             }
             catch (Exception ex)
@@ -166,9 +255,4 @@ namespace HAMS.API.Controllers
         public string Code { get; set; } = string.Empty;
     }
 
-    public class RefreshTokenRequest
-    {
-        [Required]
-        public string RefreshToken { get; set; } = string.Empty;
-    }
 }

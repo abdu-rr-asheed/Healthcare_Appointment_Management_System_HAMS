@@ -21,7 +21,7 @@ namespace HAMS.API.Controllers
         }
 
         [HttpGet("patient/{nhsNumber}")]
-        [Authorize(Roles = "Patient,Clinician,Admin")]
+        [Authorize(Roles = "Patient,Clinician,Administrator")]
         public async Task<IActionResult> GetPatient(string nhsNumber)
         {
             if (string.IsNullOrWhiteSpace(nhsNumber) || nhsNumber.Length != 10)
@@ -46,7 +46,7 @@ namespace HAMS.API.Controllers
         }
 
         [HttpGet("patient/{nhsNumber}/medical-history")]
-        [Authorize(Roles = "Clinician,Admin")]
+        [Authorize(Roles = "Clinician,Administrator")]
         public async Task<IActionResult> GetMedicalHistory(string nhsNumber)
         {
             if (string.IsNullOrWhiteSpace(nhsNumber) || nhsNumber.Length != 10)
@@ -67,7 +67,7 @@ namespace HAMS.API.Controllers
         }
 
         [HttpGet("patient/{nhsNumber}/allergies")]
-        [Authorize(Roles = "Patient,Clinician,Admin")]
+        [Authorize(Roles = "Patient,Clinician,Administrator")]
         public async Task<IActionResult> GetAllergies(string nhsNumber)
         {
             if (string.IsNullOrWhiteSpace(nhsNumber) || nhsNumber.Length != 10)
@@ -88,7 +88,7 @@ namespace HAMS.API.Controllers
         }
 
         [HttpGet("patient/{nhsNumber}/medications")]
-        [Authorize(Roles = "Patient,Clinician,Admin")]
+        [Authorize(Roles = "Patient,Clinician,Administrator")]
         public async Task<IActionResult> GetMedications(string nhsNumber)
         {
             if (string.IsNullOrWhiteSpace(nhsNumber) || nhsNumber.Length != 10)
@@ -109,7 +109,7 @@ namespace HAMS.API.Controllers
         }
 
         [HttpPost("patient/sync")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Administrator")]
         public async Task<IActionResult> SyncPatient([FromBody] SyncPatientRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.NhsNumber) || request.NhsNumber.Length != 10)

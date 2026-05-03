@@ -30,18 +30,22 @@ export class MfaGuard implements CanActivate {
   }
 
   private checkMfaStatus(): Observable<boolean> {
+    const isMfaEnabled  = this.authService.isMfaEnabled();
     const isMfaVerified = this.authService.isMfaVerified();
-    const isMfaEnabled = this.authService.isMfaEnabled();
 
+    // If MFA is not enabled for this user, no additional step is needed.
     if (!isMfaEnabled) {
       return of(true);
     }
 
+    // MFA is enabled and has been verified in this session (in-memory flag set
+    // by AuthService after verifyMfa() succeeds, or restored from sessionStorage
+    // when a previously-authenticated user reloads the app).
     if (isMfaVerified) {
       return of(true);
     }
 
-    this.router.navigate(['/auth/mfa-verify'], {
+    this.router.navigate(['/auth/mfa'], {
       queryParams: { returnUrl: window.location.pathname }
     });
     return of(false);

@@ -81,6 +81,21 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]!)),
         ClockSkew = TimeSpan.Zero
     };
+
+    // Allow the access token to be read from the HttpOnly cookie set by
+    // AuthController. The standard Authorization header still takes precedence;
+    // this fallback is only used when the header is absent.
+    options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            if (string.IsNullOrEmpty(context.Token))
+            {
+                context.Token = context.Request.Cookies["access_token"];
+            }
+            return Task.CompletedTask;
+        }
+    };
 });
 
 builder.Services.AddAuthorization(options =>
@@ -227,6 +242,11 @@ app.MapHealthChecks("/health");
 
 app.MapControllers();
 
-app.UseHangfireDashboard();
+// Hangfire dashboard — restricted to authenticated Administrators only.
+// Without this filter the dashboard is public and exposes all job data.
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new[] { new HangfireAdminAuthFilter() }
+});
 
 app.Run();

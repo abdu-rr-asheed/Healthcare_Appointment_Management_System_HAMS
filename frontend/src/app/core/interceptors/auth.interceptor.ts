@@ -6,16 +6,19 @@ import {
   HttpInterceptor,
   HttpErrorResponse
 } from '@angular/common/http';
-import { Observable, throwError, from, BehaviorSubject } from 'rxjs';
+import { Observable, throwError, BehaviorSubject } from 'rxjs';
 import { catchError, switchMap, filter, take, finalize } from 'rxjs/operators';
 import { AuthService } from '../services/auth.service';
 
 @Injectable()
 export class AuthInterceptor implements HttpInterceptor {
   private isRefreshing = false;
-  private refreshTokenSubject = new BehaviorSubject<string | null>(null);
+  // Signals waiting requests when a token refresh completes.
+  // null = refresh in progress; 'done' = refresh succeeded.
+  private refreshDone$ = new BehaviorSubject<string | null>(null);
 
-  private publicEndpoints = [
+  // Endpoints that should never trigger a refresh loop on 401.
+  private noRefreshEndpoints = [
     '/api/auth/login',
     '/api/auth/register',
     '/api/auth/forgot-password',
@@ -28,19 +31,14 @@ export class AuthInterceptor implements HttpInterceptor {
   constructor(private authService: AuthService) {}
 
   intercept(request: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
-    if (this.isPublicEndpoint(request.url)) {
-      return next.handle(request);
-    }
-
-    const token = this.authService.getToken();
-
-    if (token) {
-      request = this.addToken(request, token);
-    }
+    // All requests must include credentials so the browser sends the HttpOnly
+    // auth cookies automatically. No Authorization header is added — the JWT
+    // middleware reads the token from the cookie on the backend.
+    request = request.clone({ withCredentials: true });
 
     return next.handle(request).pipe(
       catchError((error: HttpErrorResponse) => {
-        if (error.status === 401 && !this.isRefreshRequest(request)) {
+        if (error.status === 401 && !this.isNoRefreshEndpoint(request.url)) {
           return this.handle401Error(request, next);
         }
         return throwError(() => error);
@@ -48,52 +46,39 @@ export class AuthInterceptor implements HttpInterceptor {
     );
   }
 
-  private isPublicEndpoint(url: string): boolean {
-    return this.publicEndpoints.some(endpoint => url.includes(endpoint));
+  private isNoRefreshEndpoint(url: string): boolean {
+    return this.noRefreshEndpoints.some(ep => url.includes(ep));
   }
 
-  private isRefreshRequest(request: HttpRequest<unknown>): boolean {
-    return request.url.includes('/api/auth/refresh-token');
-  }
-
-  private addToken(request: HttpRequest<unknown>, token: string): HttpRequest<unknown> {
-    return request.clone({
-      setHeaders: {
-        Authorization: `Bearer ${token}`
-      }
-    });
-  }
-
-  private handle401Error(request: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
+  private handle401Error(
+    request: HttpRequest<unknown>,
+    next: HttpHandler
+  ): Observable<HttpEvent<unknown>> {
+    // If a refresh is already in flight, queue this request until it completes.
     if (this.isRefreshing) {
-      return this.refreshTokenSubject.pipe(
-        filter(token => token != null),
+      return this.refreshDone$.pipe(
+        filter(done => done !== null),
         take(1),
-        switchMap(token => {
-          return next.handle(this.addToken(request, token!));
-        })
+        switchMap(() => next.handle(request))
       );
     }
 
     this.isRefreshing = true;
-    this.refreshTokenSubject.next(null);
+    this.refreshDone$.next(null);
 
-    const refreshToken = this.authService.getRefreshToken();
-
-    if (!refreshToken) {
-      this.authService.logout();
-      return throwError(() => new Error('No refresh token available'));
-    }
-
-    return from(this.authService.refreshToken()).pipe(
-      switchMap((response) => {
+    // POST /auth/refresh-token with no body — the browser sends the
+    // refresh_token HttpOnly cookie automatically.
+    return this.authService.refreshToken().pipe(
+      switchMap(() => {
         this.isRefreshing = false;
-        this.refreshTokenSubject.next(response.accessToken);
-        return next.handle(this.addToken(request, response.accessToken));
+        this.refreshDone$.next('done');
+        // Retry the original request; the new access_token cookie is now set.
+        return next.handle(request);
       }),
-      catchError((error) => {
+      catchError(error => {
         this.isRefreshing = false;
-        this.authService.logout();
+        // Refresh failed (expired / revoked) — force the user back to login.
+        this.authService.logout().subscribe();
         return throwError(() => error);
       }),
       finalize(() => {

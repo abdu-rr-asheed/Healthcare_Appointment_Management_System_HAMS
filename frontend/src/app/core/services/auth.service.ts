@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, of, throwError } from 'rxjs';
-import { map, tap, catchError } from 'rxjs/operators';
+import { tap, catchError } from 'rxjs/operators';
 import { ApiService } from './api.service';
+import { STORAGE_KEYS } from '../../shared/constants';
 
 export interface User {
   id: string;
@@ -16,9 +17,11 @@ export interface User {
 }
 
 export interface AuthResponse {
-  accessToken: string;
-  refreshToken: string;
-  expiresAt: string;
+  // accessToken and refreshToken are no longer in the response body —
+  // they are delivered as HttpOnly cookies by the backend.
+  accessToken?: string | null;
+  refreshToken?: string | null;
+  expiresAt?: string;
   user: User;
   requiresMfa: boolean;
   mfaUserId?: string;
@@ -56,20 +59,31 @@ export class AuthService {
   private isAuthenticatedSubject = new BehaviorSubject<boolean>(false);
   public isAuthenticated$ = this.isAuthenticatedSubject.asObservable();
 
+  // MFA verified state is tracked in memory only — never in any browser storage.
+  // Tokens live in HttpOnly cookies (unreadable from JS), so we cannot inspect
+  // the JWT directly. Having a valid session cookie implies MFA was completed,
+  // because the backend never issues tokens without it (see AuthService.cs 2.1).
+  private _mfaVerified = false;
+
   constructor(private apiService: ApiService) {
     this.checkAuthStatus();
   }
 
   private checkAuthStatus(): void {
-    const token = localStorage.getItem('access_token');
-    const userStr = localStorage.getItem('current_user');
-    
-    if (token && userStr) {
+    // Tokens are now HttpOnly cookies — JS cannot read them.
+    // Restore the user profile from sessionStorage (written on login/refresh)
+    // so the app can render immediately without a round-trip. The interceptor
+    // will catch any 401 if the cookie has actually expired.
+    const userStr = sessionStorage.getItem(STORAGE_KEYS.USER_DATA);
+    if (userStr) {
       try {
-        const user = JSON.parse(userStr);
+        const user: User = JSON.parse(userStr);
         this.currentUserSubject.next(user);
         this.isAuthenticatedSubject.next(true);
-      } catch (e) {
+        // A user found in sessionStorage obtained their JWT by completing the
+        // full auth flow (including MFA if enabled). Mark as verified.
+        this._mfaVerified = true;
+      } catch {
         this.clearAuth();
       }
     }
@@ -108,6 +122,7 @@ export class AuthService {
     return this.apiService.post<AuthResponse>('/auth/verify-mfa', { userId, code }).pipe(
       tap(response => {
         this.setAuthData(response);
+        this._mfaVerified = true;
       }),
       catchError(error => {
         console.error('MFA verification error:', error);
@@ -133,7 +148,9 @@ export class AuthService {
     return this.apiService.get<User>('/auth/me').pipe(
       tap(user => {
         this.currentUserSubject.next(user);
-        localStorage.setItem('current_user', JSON.stringify(user));
+        // Store non-sensitive profile data in sessionStorage for fast startup.
+        // Tokens are never stored here — they live in HttpOnly cookies only.
+        sessionStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(user));
       }),
       catchError(error => {
         this.clearAuth();
@@ -142,21 +159,11 @@ export class AuthService {
     );
   }
 
-  getToken(): string | null {
-    return localStorage.getItem('access_token');
-  }
-
-  getRefreshToken(): string | null {
-    return localStorage.getItem('refresh_token');
-  }
-
   refreshToken(): Observable<AuthResponse> {
-    const refreshToken = this.getRefreshToken();
-    if (!refreshToken) {
-      return throwError(() => new Error('No refresh token available'));
-    }
-
-    return this.apiService.post<AuthResponse>('/auth/refresh-token', { refreshToken }).pipe(
+    // No body needed — the browser sends the refresh_token HttpOnly cookie
+    // automatically. The backend reads it, rotates both tokens, and sets
+    // new cookies in the response.
+    return this.apiService.post<AuthResponse>('/auth/refresh-token', {}).pipe(
       tap(response => {
         this.setAuthData(response);
       }),
@@ -173,19 +180,16 @@ export class AuthService {
   }
 
   private setAuthData(response: AuthResponse): void {
-    localStorage.setItem('access_token', response.accessToken);
-    localStorage.setItem('refresh_token', response.refreshToken);
-    localStorage.setItem('current_user', JSON.stringify(response.user));
-    
+    // Tokens arrive as HttpOnly cookies set by the backend — they are not
+    // present in the response body and must NOT be stored in JS storage.
+    sessionStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(response.user));
     this.currentUserSubject.next(response.user);
     this.isAuthenticatedSubject.next(true);
   }
 
   private clearAuth(): void {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('current_user');
-    
+    sessionStorage.removeItem(STORAGE_KEYS.USER_DATA);
+    this._mfaVerified = false;
     this.currentUserSubject.next(null);
     this.isAuthenticatedSubject.next(false);
   }
@@ -204,10 +208,10 @@ export class AuthService {
   }
 
   isMfaVerified(): boolean {
-    return localStorage.getItem('mfa_verified') === 'true';
+    return this._mfaVerified;
   }
 
   setMfaVerified(verified: boolean): void {
-    localStorage.setItem('mfa_verified', verified.toString());
+    this._mfaVerified = verified;
   }
 }
