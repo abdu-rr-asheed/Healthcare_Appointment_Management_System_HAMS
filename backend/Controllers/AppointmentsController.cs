@@ -510,6 +510,48 @@ namespace HAMS.API.Controllers
             }
         }
 
+        [HttpDelete("{id}/clinical-notes/{noteId}")]
+        [Authorize(Roles = "Clinician,Administrator")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> DeleteClinicalNote(Guid id, Guid noteId)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (userId == null)
+                    return Unauthorized();
+
+                // Retrieve the note that belongs to this appointment
+                var note = await _context.ClinicalNotes
+                    .FirstOrDefaultAsync(n => n.Id == noteId && n.AppointmentId == id);
+
+                if (note == null)
+                    return NotFound(new ErrorResponse { Message = "Clinical note not found" });
+
+                // Non-admin callers may only delete their own notes
+                if (!User.IsInRole("Administrator"))
+                {
+                    var clinician = await _context.Clinicians
+                        .FirstOrDefaultAsync(c => c.UserId == Guid.Parse(userId));
+
+                    if (clinician == null || note.ClinicianId != clinician.Id)
+                        return Forbid();
+                }
+
+                _context.ClinicalNotes.Remove(note);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Clinical note deleted successfully" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to delete clinical note");
+                return StatusCode(500, new ErrorResponse { Message = "An error occurred" });
+            }
+        }
+
         [HttpPost("{id}/clinical-notes/{noteId}/sync-to-ehr")]
         [Authorize(Roles = "Clinician,Administrator")]
         [ProducesResponseType(typeof(SyncToEhrResponse), StatusCodes.Status200OK)]

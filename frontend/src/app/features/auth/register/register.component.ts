@@ -8,6 +8,7 @@ import { AuthService, RegisterRequest } from '../../../core/services/auth.servic
 import { NotificationService } from '../../../core/services/notification.service';
 import {
   dateOfBirthValidator,
+  nhsNumberValidator,
   passwordValidator,
   passwordMatchValidator as sharedPasswordMatchValidator
 } from '../../../shared/validators';
@@ -35,7 +36,7 @@ export class RegisterComponent {
 
   constructor() {
     this.registerForm = this.fb.group({
-      nhsNumber: ['', [Validators.required, Validators.minLength(10), Validators.maxLength(50)]],
+      nhsNumber: ['', [Validators.required, nhsNumberValidator()]],
       email: ['', [Validators.required, Validators.email, Validators.maxLength(100)]],
       phoneNumber: ['', [Validators.required, Validators.minLength(10), Validators.maxLength(20)]],
       password: ['', [Validators.required, Validators.minLength(8), passwordValidator()]],
@@ -149,6 +150,8 @@ export class RegisterComponent {
       minlength: 'Minimum length not met',
       maxlength: 'Maximum length exceeded',
       pattern: 'Invalid format',
+      // nhsNumberValidator() — checksum failure
+      nhsNumber: 'Please enter a valid 10-digit NHS number',
       // passwordValidator() error keys
       minLength: 'Password must be at least 8 characters',
       noUppercase: 'Password must contain an uppercase letter',

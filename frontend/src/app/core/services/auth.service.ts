@@ -65,6 +65,21 @@ export class AuthService {
   // because the backend never issues tokens without it (see AuthService.cs 2.1).
   private _mfaVerified = false;
 
+  /** Synchronous snapshot of the current user — use currentUser$ for reactive bindings. */
+  get currentUserValue(): User | null {
+    return this.currentUserSubject.getValue();
+  }
+
+  /** Synchronous authenticated state — use isAuthenticated$ for reactive bindings. */
+  get isAuthenticated(): boolean {
+    return this.isAuthenticatedSubject.getValue();
+  }
+
+  /** True once MFA has been successfully verified in this browser session. */
+  isMfaVerified(): boolean {
+    return this._mfaVerified;
+  }
+
   constructor(private apiService: ApiService) {
     this.checkAuthStatus();
   }

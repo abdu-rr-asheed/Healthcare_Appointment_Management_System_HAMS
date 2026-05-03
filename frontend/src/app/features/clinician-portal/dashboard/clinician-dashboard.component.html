@@ -1,0 +1,218 @@
+<div class="clinician-dashboard">
+
+  <!-- Header -->
+  <div class="dash-header">
+    <div>
+      <h1>{{ greeting }}, {{ clinicianName }}</h1>
+      <p class="subhead">Here's your schedule for today — {{ today | date:'EEEE, d MMMM yyyy' }}</p>
+    </div>
+    <button class="refresh-btn" (click)="loadDashboard()" [disabled]="loading()">
+      @if (loading()) { Loading… } @else { ↻ Refresh }
+    </button>
+  </div>
+
+  <!-- Loading -->
+  @if (loading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading your dashboard…</p>
+    </div>
+  }
+
+  <!-- Error -->
+  @else if (error()) {
+    <div class="error-banner">
+      <span>⚠ {{ error() }}</span>
+      <button (click)="loadDashboard()">Retry</button>
+    </div>
+  }
+
+  @else if (data(); as d) {
+
+    <!-- ── Next appointment banner ─────────────────────────────── -->
+    @if (d.nextAppointment) {
+      <div class="next-appt-banner">
+        <div class="next-icon">⏰</div>
+        <div class="next-body">
+          <span class="next-label">Next appointment</span>
+          <span class="next-patient">{{ d.nextAppointment.patientName }}</span>
+        </div>
+        <div class="next-time">{{ timeUntilLabel(d.nextAppointment.startDateTime) }}</div>
+        <a [routerLink]="['/clinician/clinical-notes', d.nextAppointment.id]" class="next-btn">
+          Open Notes
+        </a>
+      </div>
+    }
+
+    <!-- ── Quick stats ─────────────────────────────────────────── -->
+    <section class="section">
+      <div class="stat-grid">
+
+        <div class="stat-card accent-blue">
+          <div class="stat-icon">📅</div>
+          <div class="stat-body">
+            <div class="stat-value">{{ d.stats.appointmentsToday }}</div>
+            <div class="stat-label">Today</div>
+            <div class="stat-sub">{{ d.stats.pendingToday }} pending</div>
+          </div>
+        </div>
+
+        <div class="stat-card accent-purple">
+          <div class="stat-icon">🗓</div>
+          <div class="stat-body">
+            <div class="stat-value">{{ d.stats.appointmentsThisWeek }}</div>
+            <div class="stat-label">This Week</div>
+            <div class="stat-sub">scheduled</div>
+          </div>
+        </div>
+
+        <div class="stat-card accent-orange">
+          <div class="stat-icon">📆</div>
+          <div class="stat-body">
+            <div class="stat-value">{{ d.stats.upcomingNext7Days }}</div>
+            <div class="stat-label">Next 7 Days</div>
+            <div class="stat-sub">upcoming</div>
+          </div>
+        </div>
+
+        <div class="stat-card accent-green">
+          <div class="stat-icon">✅</div>
+          <div class="stat-body">
+            <div class="stat-value">{{ d.stats.completedAllTime }}</div>
+            <div class="stat-label">Completed</div>
+            <div class="stat-sub">all time</div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── Schedule tabs ───────────────────────────────────────── -->
+    <section class="section schedule-section">
+      <div class="tab-bar">
+        <button class="tab-btn" [class.active]="activeTab() === 'today'" (click)="activeTab.set('today')">
+          Today's Schedule
+          <span class="tab-badge">{{ d.todayAppointments.length }}</span>
+        </button>
+        <button class="tab-btn" [class.active]="activeTab() === 'upcoming'" (click)="activeTab.set('upcoming')">
+          Upcoming (7 days)
+          <span class="tab-badge">{{ d.upcomingAppointments.length }}</span>
+        </button>
+        <a routerLink="/clinician/schedule" class="tab-link">Full schedule →</a>
+      </div>
+
+      <!-- Today tab -->
+      @if (activeTab() === 'today') {
+        @if (d.todayAppointments.length === 0) {
+          <div class="empty-state">
+            <div class="empty-icon">🏖</div>
+            <p>No appointments scheduled for today.</p>
+            <a routerLink="/clinician/availability" class="link-btn">Manage Availability</a>
+          </div>
+        } @else {
+          <div class="appt-list">
+            @for (apt of d.todayAppointments; track apt.id) {
+              <div class="appt-card" [class.appt-now]="isNow(apt)">
+
+                <div class="appt-time-col">
+                  <span class="appt-start">{{ formatTime(apt.startDateTime) }}</span>
+                  <span class="appt-end">{{ formatTime(apt.endDateTime) }}</span>
+                  @if (isNow(apt)) {
+                    <span class="now-badge">NOW</span>
+                  }
+                </div>
+
+                <div class="appt-type-col">
+                  <span class="type-icon">{{ typeIcon(apt.appointmentType) }}</span>
+                  <span class="type-label">{{ typeLabel(apt.appointmentType) }}</span>
+                </div>
+
+                <div class="appt-info">
+                  <div class="patient-name">{{ apt.patientName }}</div>
+                  @if (apt.patientNhsNumber) {
+                    <div class="patient-nhs">NHS: {{ apt.patientNhsNumber }}</div>
+                  }
+                  <div class="dept-name">{{ apt.departmentName }}</div>
+                  @if (apt.notes) {
+                    <div class="appt-notes">{{ apt.notes }}</div>
+                  }
+                </div>
+
+                <div class="appt-status-col">
+                  <span class="status-badge {{ statusClass(apt.status) }}">{{ apt.status }}</span>
+                </div>
+
+                <div class="appt-actions">
+                  <a [routerLink]="['/clinician/clinical-notes', apt.id]" class="btn-primary-sm">
+                    Clinical Notes
+                  </a>
+                </div>
+
+              </div>
+            }
+          </div>
+        }
+      }
+
+      <!-- Upcoming tab -->
+      @if (activeTab() === 'upcoming') {
+        @if (d.upcomingAppointments.length === 0) {
+          <div class="empty-state">
+            <div class="empty-icon">📭</div>
+            <p>No appointments scheduled for the next 7 days.</p>
+          </div>
+        } @else {
+          <div class="appt-list">
+            @for (apt of d.upcomingAppointments; track apt.id) {
+              <div class="appt-card">
+
+                <div class="appt-time-col">
+                  <span class="appt-date">{{ formatDate(apt.startDateTime) }}</span>
+                  <span class="appt-start">{{ formatTime(apt.startDateTime) }}</span>
+                  <span class="appt-end">{{ formatTime(apt.endDateTime) }}</span>
+                </div>
+
+                <div class="appt-type-col">
+                  <span class="type-icon">{{ typeIcon(apt.appointmentType) }}</span>
+                  <span class="type-label">{{ typeLabel(apt.appointmentType) }}</span>
+                </div>
+
+                <div class="appt-info">
+                  <div class="patient-name">{{ apt.patientName }}</div>
+                  <div class="dept-name">{{ apt.departmentName }}</div>
+                </div>
+
+                <div class="appt-status-col">
+                  <span class="status-badge {{ statusClass(apt.status) }}">{{ apt.status }}</span>
+                </div>
+
+                <div class="appt-actions">
+                  <span class="time-until">{{ timeUntilLabel(apt.startDateTime) }}</span>
+                </div>
+
+              </div>
+            }
+          </div>
+        }
+      }
+
+    </section>
+
+    <!-- ── Quick links ─────────────────────────────────────────── -->
+    <section class="section">
+      <h2 class="section-title">Quick Links</h2>
+      <div class="quick-links">
+        <a routerLink="/clinician/schedule" class="ql-card">
+          <span class="ql-icon">🗓</span>
+          <span>Full Schedule</span>
+        </a>
+        <a routerLink="/clinician/availability" class="ql-card">
+          <span class="ql-icon">⚙</span>
+          <span>Manage Availability</span>
+        </a>
+      </div>
+    </section>
+
+  }
+
+</div>

@@ -307,6 +307,29 @@ namespace HAMS.API.Services
             return response;
         }
 
+        public async Task RemoveLeavePeriodAsync(Guid clinicianId, Guid leaveId, string callerUserId, bool isAdmin)
+        {
+            // Resolve the clinician record and verify it belongs to the caller
+            // (unless the caller is an Administrator).
+            var clinician = await _context.Clinicians
+                .FirstOrDefaultAsync(c => c.Id == clinicianId)
+                ?? throw new KeyNotFoundException("Clinician not found");
+
+            if (!isAdmin && clinician.UserId.ToString() != callerUserId)
+                throw new UnauthorizedAccessException("You may only remove your own leave periods");
+
+            var leave = await _context.LeavePeriods
+                .FirstOrDefaultAsync(lp => lp.Id == leaveId && lp.ClinicianId == clinicianId)
+                ?? throw new KeyNotFoundException("Leave period not found");
+
+            _context.LeavePeriods.Remove(leave);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "Leave period {LeaveId} removed for clinician {ClinicianId} by {CallerUserId}",
+                leaveId, clinicianId, callerUserId);
+        }
+
         public async Task<ScheduleResponseDto> GetScheduleAsync(string userId, string viewType, DateTime startDate)
         {
             var userIdGuid = Guid.Parse(userId);

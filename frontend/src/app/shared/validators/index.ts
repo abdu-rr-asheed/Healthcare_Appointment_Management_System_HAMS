@@ -35,12 +35,35 @@ export function phoneNumberValidator(): ValidatorFn {
 
 export function nhsNumberValidator(): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
-    const value = control.value;
-    if (!value) {
-      return null;
+    const raw: string = (control.value ?? '').toString();
+    if (!raw) return null;
+
+    // Strip any spaces or dashes the user may have typed (e.g. "943 476 5919")
+    const digits = raw.replace(/[\s\-]/g, '');
+
+    // Must be exactly 10 numeric digits
+    if (!/^\d{10}$/.test(digits)) {
+      return { nhsNumber: true };
     }
-    const nhsNumberRegex = /^\d{10}$/;
-    return nhsNumberRegex.test(value) ? null : { nhsNumber: true };
+
+    // NHS checksum: multiply each of the first 9 digits by a descending weight
+    // (10, 9, 8 … 2), sum the products, compute remainder mod 11, then derive
+    // the expected check digit as  11 − remainder.
+    //   • remainder === 0  →  check digit = 11, but NHS uses 0 in that case
+    //   • result    === 10 →  no valid 10th digit exists; the number is invalid
+    //   • otherwise compare result with the actual 10th digit
+    const weights = [10, 9, 8, 7, 6, 5, 4, 3, 2];
+    const sum = weights.reduce(
+      (acc, w, i) => acc + w * parseInt(digits[i], 10), 0
+    );
+    const remainder  = sum % 11;
+    const checkDigit = remainder === 0 ? 0 : 11 - remainder;
+
+    if (checkDigit === 10) {
+      return { nhsNumber: true };   // mathematically impossible digit — reject
+    }
+
+    return checkDigit === parseInt(digits[9], 10) ? null : { nhsNumber: true };
   };
 }
 

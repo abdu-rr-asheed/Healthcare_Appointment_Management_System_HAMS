@@ -110,12 +110,63 @@ namespace HAMS.API.Services
             };
         }
 
+        // ── Lockout policy ───────────────────────────────────────────────────────
+        private const int    MaxFailedAttempts = 5;
+        private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
+
         public async Task<AuthResponse> LoginAsync(LoginRequest request)
         {
+            // Load the user (or a sentinel so we don't leak whether the NHS number exists).
             var user = await _context.Users.FirstOrDefaultAsync(u => u.NhsNumber == request.NhsNumber);
 
-            if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+            // ── 1. Account lockout check ─────────────────────────────────────────
+            // Evaluated before password verification so a locked account always
+            // returns the same error regardless of the supplied password.
+            if (user != null && user.LockedUntil.HasValue && user.LockedUntil.Value > DateTime.UtcNow)
             {
+                var remaining = (int)Math.Ceiling(
+                    (user.LockedUntil.Value - DateTime.UtcNow).TotalMinutes);
+
+                await _auditService.LogAsync(
+                    user.Id.ToString(), $"{user.FirstName} {user.LastName}",
+                    user.Role.ToString(), "UserLogin", "User", user.Id, "", "",
+                    "Failure-Locked");
+
+                throw new UnauthorizedAccessException(
+                    $"Account is temporarily locked. Please try again in {remaining} minute(s).");
+            }
+
+            // ── 2. Credential verification ───────────────────────────────────────
+            var passwordValid = user != null &&
+                                BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash);
+
+            if (user == null || !passwordValid)
+            {
+                // Increment failure counter and, if needed, apply a lockout.
+                if (user != null)
+                {
+                    user.AccessFailedCount++;
+
+                    if (user.AccessFailedCount >= MaxFailedAttempts)
+                    {
+                        user.LockedUntil         = DateTime.UtcNow.Add(LockoutDuration);
+                        user.AccessFailedCount   = 0;      // reset so counter is clean after unlock
+
+                        await _context.SaveChangesAsync();
+
+                        await _auditService.LogAsync(
+                            user.Id.ToString(), $"{user.FirstName} {user.LastName}",
+                            user.Role.ToString(), "AccountLocked", "User", user.Id, "", "",
+                            $"LockedFor={LockoutDuration.TotalMinutes}min");
+
+                        throw new UnauthorizedAccessException(
+                            $"Too many failed login attempts. Your account has been locked for " +
+                            $"{(int)LockoutDuration.TotalMinutes} minutes.");
+                    }
+
+                    await _context.SaveChangesAsync();
+                }
+
                 throw new UnauthorizedAccessException("Invalid credentials");
             }
 
@@ -124,7 +175,10 @@ namespace HAMS.API.Services
                 throw new UnauthorizedAccessException("Account is inactive");
             }
 
-            user.LastLoginAt = DateTime.UtcNow;
+            // ── 3. Successful authentication — reset lockout counters ────────────
+            user.AccessFailedCount = 0;
+            user.LockedUntil       = null;
+            user.LastLoginAt       = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
             await _auditService.LogAsync(
@@ -294,6 +348,47 @@ namespace HAMS.API.Services
             };
         }
 
+        public async Task ResendMfaAsync(string userId)
+        {
+            if (!Guid.TryParse(userId, out var userGuid))
+                throw new ArgumentException("Invalid user identifier");
+
+            var user = await _context.Users.FindAsync(userGuid)
+                ?? throw new UnauthorizedAccessException("User not found");
+
+            // The pending-session key must already exist — it proves the caller
+            // completed password authentication. Without it we refuse to issue a
+            // new code so that an attacker cannot trigger OTP spam arbitrarily.
+            var pendingKey  = MfaPendingPrefix  + userId;
+            var otpKey      = MfaOtpPrefix      + userId;
+            var attemptsKey = MfaAttemptsPrefix + userId;
+
+            var pendingSession = await _cache.GetStringAsync(pendingKey);
+            if (pendingSession == null)
+            {
+                throw new UnauthorizedAccessException(
+                    "No active MFA session found. Please log in again.");
+            }
+
+            // Generate fresh OTP and reset all three Redis keys with a new TTL.
+            var otp = GenerateMfaOtp();
+            var cacheOptions = new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = MfaTtl
+            };
+
+            await _cache.SetStringAsync(otpKey,      otp,    cacheOptions);
+            await _cache.SetStringAsync(pendingKey,  userId, cacheOptions);
+            await _cache.RemoveAsync(attemptsKey);                          // reset failures
+
+            // TODO: dispatch via real SMS/email service before production.
+            Console.WriteLine($"[MFA-OTP RESEND] userId={userId} code={otp}");
+
+            await _auditService.LogAsync(
+                userId, $"{user.FirstName} {user.LastName}", user.Role.ToString(),
+                "MfaResend", "User", userGuid, "", "", "Success");
+        }
+
         /// <summary>
         /// Generates a cryptographically secure 6-digit numeric OTP.
         /// Uses RandomNumberGenerator to avoid modulo bias: keeps drawing
@@ -361,15 +456,44 @@ namespace HAMS.API.Services
 
         public async Task LogoutAsync(string userId)
         {
+            if (!Guid.TryParse(userId, out var userGuid))
+            {
+                return; // nothing to revoke for a malformed id
+            }
+
+            // Revoke every active refresh token that belongs to this user.
+            // "Active" means neither expired nor already revoked.
+            var activeTokens = await _context.RefreshTokens
+                .Where(t => t.UserId == userGuid
+                         && t.RevokedAt == null
+                         && t.ExpiresAt > DateTime.UtcNow)
+                .ToListAsync();
+
+            var now = DateTime.UtcNow;
+            foreach (var token in activeTokens)
+            {
+                token.RevokedAt = now;
+            }
+
+            if (activeTokens.Count > 0)
+            {
+                await _context.SaveChangesAsync();
+            }
+
+            // Retrieve the user's name for a meaningful audit entry.
+            var user = await _context.Users.FindAsync(userGuid);
+            var userName = user != null ? $"{user.FirstName} {user.LastName}" : "Unknown";
+            var userRole = user != null ? user.Role.ToString() : string.Empty;
+
             await _auditService.LogAsync(
                 userId,
-                "User",
-                "",
+                userName,
+                userRole,
                 "UserLogout",
                 "User",
-                Guid.Parse(userId),
+                userGuid,
                 "",
-                "",
+                $"TokensRevoked={activeTokens.Count}",
                 "Success"
             );
         }

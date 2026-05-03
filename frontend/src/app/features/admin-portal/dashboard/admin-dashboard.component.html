@@ -1,0 +1,251 @@
+<div class="admin-dashboard">
+
+  <!-- Header -->
+  <div class="dash-header">
+    <div>
+      <h1>Admin Dashboard</h1>
+      <p class="welcome">Welcome back, {{ adminName }}</p>
+    </div>
+    <button class="refresh-btn" (click)="loadDashboard()" [disabled]="loading()">
+      @if (loading()) { Loading… } @else { ↻ Refresh }
+    </button>
+  </div>
+
+  <!-- Loading -->
+  @if (loading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading dashboard…</p>
+    </div>
+  }
+
+  <!-- Error -->
+  @else if (error()) {
+    <div class="error-banner">
+      <span>⚠ {{ error() }}</span>
+      <button (click)="loadDashboard()">Retry</button>
+    </div>
+  }
+
+  @else if (data(); as d) {
+
+    <!-- ── User stat cards ─────────────────────────────────────── -->
+    <section class="section">
+      <h2 class="section-title">User Overview</h2>
+      <div class="stat-grid">
+
+        <div class="stat-card accent-blue">
+          <div class="stat-icon">👥</div>
+          <div class="stat-body">
+            <div class="stat-value">{{ d.userStats.totalUsers }}</div>
+            <div class="stat-label">Total Users</div>
+            <div class="stat-sub">{{ d.userStats.activeUsers }} active</div>
+          </div>
+        </div>
+
+        <div class="stat-card accent-green">
+          <div class="stat-icon">🏥</div>
+          <div class="stat-body">
+            <div class="stat-value">{{ d.userStats.patients }}</div>
+            <div class="stat-label">Patients</div>
+            <div class="stat-sub">registered</div>
+          </div>
+        </div>
+
+        <div class="stat-card accent-purple">
+          <div class="stat-icon">👨‍⚕️</div>
+          <div class="stat-body">
+            <div class="stat-value">{{ d.userStats.clinicians }}</div>
+            <div class="stat-label">Clinicians</div>
+            <div class="stat-sub">across {{ d.departmentStats.totalDepartments }} depts</div>
+          </div>
+        </div>
+
+        <div class="stat-card accent-orange">
+          <div class="stat-icon">🆕</div>
+          <div class="stat-body">
+            <div class="stat-value">{{ d.userStats.newUsersThisWeek }}</div>
+            <div class="stat-label">New This Week</div>
+            <div class="stat-sub">registrations</div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── Appointment metrics ─────────────────────────────────── -->
+    <section class="section">
+      <h2 class="section-title">Appointment Metrics</h2>
+
+      <div class="stat-grid">
+        <div class="stat-card accent-blue">
+          <div class="stat-icon">📅</div>
+          <div class="stat-body">
+            <div class="stat-value">{{ d.appointmentStats.total }}</div>
+            <div class="stat-label">Total Appointments</div>
+            <div class="stat-sub">all time</div>
+          </div>
+        </div>
+        <div class="stat-card accent-green">
+          <div class="stat-icon">📆</div>
+          <div class="stat-body">
+            <div class="stat-value">{{ d.appointmentStats.today }}</div>
+            <div class="stat-label">Today</div>
+            <div class="stat-sub">scheduled</div>
+          </div>
+        </div>
+        <div class="stat-card accent-purple">
+          <div class="stat-icon">🗓</div>
+          <div class="stat-body">
+            <div class="stat-value">{{ d.appointmentStats.thisWeek }}</div>
+            <div class="stat-label">This Week</div>
+            <div class="stat-sub">scheduled</div>
+          </div>
+        </div>
+        <div class="stat-card accent-red">
+          <div class="stat-icon">❌</div>
+          <div class="stat-body">
+            <div class="stat-value">{{ d.appointmentStats.cancelled }}</div>
+            <div class="stat-label">Cancelled</div>
+            <div class="stat-sub">all time</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status breakdown bars -->
+      <div class="breakdown-card">
+        <h3>Status Breakdown</h3>
+        <div class="breakdown-rows">
+
+          <div class="breakdown-row">
+            <span class="br-label">Pending</span>
+            <div class="br-bar-wrap">
+              <div class="br-bar pending"
+                   [style.width.%]="barPercent(d.appointmentStats.pending, d.appointmentStats.total)"></div>
+            </div>
+            <span class="br-count">{{ d.appointmentStats.pending }}</span>
+          </div>
+
+          <div class="breakdown-row">
+            <span class="br-label">Confirmed</span>
+            <div class="br-bar-wrap">
+              <div class="br-bar confirmed"
+                   [style.width.%]="barPercent(d.appointmentStats.confirmed, d.appointmentStats.total)"></div>
+            </div>
+            <span class="br-count">{{ d.appointmentStats.confirmed }}</span>
+          </div>
+
+          <div class="breakdown-row">
+            <span class="br-label">Completed</span>
+            <div class="br-bar-wrap">
+              <div class="br-bar completed"
+                   [style.width.%]="barPercent(d.appointmentStats.completed, d.appointmentStats.total)"></div>
+            </div>
+            <span class="br-count">{{ d.appointmentStats.completed }}</span>
+          </div>
+
+          <div class="breakdown-row">
+            <span class="br-label">Cancelled</span>
+            <div class="br-bar-wrap">
+              <div class="br-bar cancelled"
+                   [style.width.%]="barPercent(d.appointmentStats.cancelled, d.appointmentStats.total)"></div>
+            </div>
+            <span class="br-count">{{ d.appointmentStats.cancelled }}</span>
+          </div>
+
+          <div class="breakdown-row">
+            <span class="br-label">DNA</span>
+            <div class="br-bar-wrap">
+              <div class="br-bar dna"
+                   [style.width.%]="barPercent(d.appointmentStats.didNotAttend, d.appointmentStats.total)"></div>
+            </div>
+            <span class="br-count">{{ d.appointmentStats.didNotAttend }}</span>
+          </div>
+
+        </div>
+
+        <!-- Type breakdown -->
+        <h3 class="mt-16">Type Breakdown</h3>
+        <div class="type-chips">
+          <span class="type-chip initial">
+            Initial Consultation: <strong>{{ d.appointmentStats.typeBreakdown.initialConsultation }}</strong>
+          </span>
+          <span class="type-chip followup">
+            Follow-Up: <strong>{{ d.appointmentStats.typeBreakdown.followUp }}</strong>
+          </span>
+          <span class="type-chip emergency">
+            Emergency: <strong>{{ d.appointmentStats.typeBreakdown.emergency }}</strong>
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Two-column lower section ───────────────────────────── -->
+    <div class="two-col">
+
+      <!-- Top departments -->
+      <section class="section card">
+        <h2 class="section-title">Top Departments by Appointments</h2>
+        @if (d.departmentStats.topDepartments.length === 0) {
+          <p class="empty-msg">No department data yet.</p>
+        } @else {
+          <div class="dept-list">
+            @for (dept of d.departmentStats.topDepartments; track dept.name) {
+              <div class="dept-row">
+                <span class="dept-name">{{ dept.name }}</span>
+                <div class="dept-bar-wrap">
+                  <div class="dept-bar"
+                       [style.width.%]="barPercent(dept.count, d.departmentStats.topDepartments[0].count)"></div>
+                </div>
+                <span class="dept-count">{{ dept.count }}</span>
+              </div>
+            }
+          </div>
+        }
+        <a routerLink="/admin/reports" class="card-link">View full reports →</a>
+      </section>
+
+      <!-- Recent activity -->
+      <section class="section card">
+        <h2 class="section-title">Recent Activity</h2>
+        @if (d.recentActivity.length === 0) {
+          <p class="empty-msg">No recent activity.</p>
+        } @else {
+          <ul class="activity-list">
+            @for (entry of d.recentActivity; track entry.id) {
+              <li class="activity-item">
+                <span class="activity-dot {{ actionClass(entry.action) }}"></span>
+                <div class="activity-body">
+                  <span class="activity-action">{{ actionLabel(entry.action) }}</span>
+                  <span class="activity-meta">
+                    {{ entry.userName }} · {{ entry.resourceType }}
+                  </span>
+                  <span class="activity-time">{{ formatTimestamp(entry.timestamp) }}</span>
+                </div>
+              </li>
+            }
+          </ul>
+        }
+        <a routerLink="/admin/audit-log" class="card-link">View full audit log →</a>
+      </section>
+
+    </div>
+
+    <!-- ── System status strip ─────────────────────────────────── -->
+    <section class="section status-strip">
+      <div class="status-item">
+        <span class="status-dot {{ d.systemStatus.databaseConnected ? 'online' : 'offline' }}"></span>
+        <span>Database: {{ d.systemStatus.databaseConnected ? 'Connected' : 'Disconnected' }}</span>
+      </div>
+      <div class="status-item">
+        <span class="status-dot online"></span>
+        <span>API: Online</span>
+      </div>
+      <div class="status-item muted">
+        Last refreshed: {{ formatTimestamp(d.systemStatus.generatedAt) }}
+      </div>
+    </section>
+
+  }
+
+</div>

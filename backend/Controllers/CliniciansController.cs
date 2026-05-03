@@ -263,81 +263,74 @@ namespace HAMS.API.Controllers
             }
         }
 
-        [HttpPost("{id}/slots/generate")]
+        [HttpDelete("{id}/availability/leave/{leaveId}")]
         [Authorize(Roles = "Clinician,Administrator")]
-        [ProducesResponseType(typeof(GenerateSlotsResponseDto), StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> GenerateSlots(Guid id, [FromBody] GenerateSlotsRequest request)
+        public async Task<IActionResult> RemoveLeavePeriod(Guid id, Guid leaveId)
         {
             try
             {
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (userId == null)
-                {
+                var callerUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (callerUserId == null)
                     return Unauthorized();
-                }
 
-                var clinician = await _context.Clinicians
-                    .FirstOrDefaultAsync(c => c.Id == id && c.UserId == Guid.Parse(userId));
-
-                if (clinician == null && !User.IsInRole("Administrator"))
-                {
-                    return Forbid();
-                }
-
-                var existingSlots = await _context.AvailabilitySlots
-                    .Where(s => s.ClinicianId == id
-                        && s.StartDateTime >= request.StartDate
-                        && s.EndDateTime <= request.EndDate)
-                    .ToListAsync();
-
-                var slotsGenerated = 0;
-                var currentDate = request.StartDate;
-                var startHour = 9;
-                var endHour = 17;
-
-                while (currentDate <= request.EndDate)
-                {
-                    if (currentDate.DayOfWeek != DayOfWeek.Saturday && currentDate.DayOfWeek != DayOfWeek.Sunday)
-                    {
-                        for (int hour = startHour; hour < endHour; hour++)
-                        {
-                            var slotStart = currentDate.Date.AddHours(hour);
-                            var slotEnd = slotStart.AddMinutes(30);
-
-                            var exists = existingSlots.Any(s => s.StartDateTime == slotStart && s.ClinicianId == id);
-                            if (!exists)
-                            {
-                                var slot = new AvailabilitySlot
-                                {
-                                    Id = Guid.NewGuid(),
-                                    ClinicianId = id,
-                                    StartDateTime = slotStart,
-                                    EndDateTime = slotEnd,
-                                    DepartmentId = clinician.DepartmentId,
-                                    IsAvailable = true,
-                                    CreatedAt = DateTime.UtcNow
-                                };
-                                _context.AvailabilitySlots.Add(slot);
-                                slotsGenerated++;
-                            }
-                        }
-                    }
-                    currentDate = currentDate.AddDays(1);
-                }
-
-                await _context.SaveChangesAsync();
-
-                return Created($"api/clinicians/{id}/availability", new GenerateSlotsResponseDto
-                {
-                    SlotsGenerated = slotsGenerated,
-                    SlotsBlocked = 0,
-                    Warnings = new List<string>()
-                });
+                var isAdmin = User.IsInRole("Administrator");
+                await _clinicianService.RemoveLeavePeriodAsync(id, leaveId, callerUserId, isAdmin);
+                return Ok(new { message = "Leave period removed successfully" });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new ErrorResponse { Message = ex.Message });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogWarning(ex, "Unauthorized leave period deletion attempt");
+                return Forbid();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to generate slots");
+                _logger.LogError(ex, "Failed to remove leave period");
+                return StatusCode(500, new ErrorResponse { Message = "An error occurred" });
+            }
+        }
+
+        [HttpPost("{id}/slots/generate")]
+        [Authorize(Roles = "Clinician,Administrator")]
+        [ProducesResponseType(typeof(GenerateSlotsResponseDto), StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GenerateSlots(Guid id, [FromBody] GenerateSlotsRequestDto request)
+        {
+            try
+            {
+                var callerUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (callerUserId == null)
+                    return Unauthorized();
+
+                var clinician = await _context.Clinicians
+                    .FirstOrDefaultAsync(c => c.Id == id);
+
+                if (clinician == null)
+                    return NotFound(new ErrorResponse { Message = "Clinician not found" });
+
+                // Clinicians may only generate slots for themselves; Admins may target any.
+                if (clinician.UserId != Guid.Parse(callerUserId) && !User.IsInRole("Administrator"))
+                    return Forbid();
+
+                var result = await _clinicianService.GenerateSlotsAsync(
+                    clinician.UserId.ToString(), request);
+
+                return Created($"api/clinicians/{id}/availability", result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new ErrorResponse { Message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to generate slots for clinician {ClinicianId}", id);
                 return StatusCode(500, new ErrorResponse { Message = "An error occurred" });
             }
         }
@@ -423,16 +416,4 @@ namespace HAMS.API.Controllers
         public List<SlotConfigurationDto>? SlotConfigurations { get; set; }
     }
 
-    public class GenerateSlotsRequest
-    {
-        public DateTime StartDate { get; set; }
-        public DateTime EndDate { get; set; }
-    }
-
-    public class GenerateSlotsResponseDto
-    {
-        public int SlotsGenerated { get; set; }
-        public int SlotsBlocked { get; set; }
-        public List<string> Warnings { get; set; } = new();
-    }
 }

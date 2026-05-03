@@ -138,6 +138,33 @@ namespace HAMS.API.Controllers
             }
         }
 
+        [HttpPost("resend-mfa")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> ResendMfa([FromBody] ResendMfaRequest request)
+        {
+            try
+            {
+                await _authService.ResendMfaAsync(request.UserId);
+                return Ok(new { message = "A new verification code has been sent." });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogWarning(ex, "Resend MFA failed — no active session");
+                return Unauthorized(new ErrorResponse { Message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new ErrorResponse { Message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Resend MFA failed");
+                return StatusCode(500, new ErrorResponse { Message = "An error occurred while resending the code" });
+            }
+        }
+
         [HttpPost("verify-mfa")]
         [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
@@ -253,6 +280,12 @@ namespace HAMS.API.Controllers
         [Required]
         [MaxLength(10)]
         public string Code { get; set; } = string.Empty;
+    }
+
+    public class ResendMfaRequest
+    {
+        [Required]
+        public string UserId { get; set; } = string.Empty;
     }
 
 }
