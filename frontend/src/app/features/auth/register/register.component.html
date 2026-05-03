@@ -228,8 +228,8 @@
               {{ showConfirmPassword ? 'Hide' : 'Show' }}
             </button>
           </div>
-          @if (registerForm.errors?.['passwordMismatch'] && isFieldInvalid('confirmPassword')) {
-            <small class="error-message">Passwords do not match</small>
+          @if (isFieldInvalid('confirmPassword')) {
+            <small class="error-message">{{ getErrorMessage('confirmPassword') }}</small>
           }
         </div>
 

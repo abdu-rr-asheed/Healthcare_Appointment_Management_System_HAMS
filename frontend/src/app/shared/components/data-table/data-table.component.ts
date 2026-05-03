@@ -22,79 +22,90 @@ export interface TableConfig {
   imports: [CommonModule, FormsModule],
   template: `
     <div class="data-table-container">
-      <div class="table-header" *ngIf="config.showSearch">
-        <input 
-          type="text" 
-          class="search-input"
-          placeholder="Search..."
-          [(ngModel)]="searchTerm"
-          (ngModelChange)="onSearch()">
-      </div>
-      
+      @if (config.showSearch) {
+        <div class="table-header">
+          <input
+            type="text"
+            class="search-input"
+            placeholder="Search..."
+            [(ngModel)]="searchTerm"
+            (ngModelChange)="onSearch()">
+        </div>
+      }
+
       <div class="table-wrapper">
         <table class="data-table">
           <thead>
             <tr>
-              <th 
-                *ngFor="let col of config.columns"
-                [style.width]="col.width"
-                (click)="col.sortable && toggleSort(col.key)"
-                [class.sortable]="col.sortable">
-                {{ col.label }}
-                <span *ngIf="col.sortable && sortKey === col.key" class="sort-icon">
-                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                </span>
-              </th>
+              @for (col of config.columns; track col.key) {
+                <th
+                  [style.width]="col.width"
+                  (click)="col.sortable && toggleSort(col.key)"
+                  [class.sortable]="col.sortable">
+                  {{ col.label }}
+                  @if (col.sortable && sortKey === col.key) {
+                    <span class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                  }
+                </th>
+              }
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let row of paginatedData()" (click)="rowClicked.emit(row)">
-              <td *ngFor="let col of config.columns">
-                <ng-container *ngIf="!col.key.includes('.'); else nested">
-                  {{ row[col.key] }}
-                </ng-container>
-                <ng-template #nested>
-                  {{ getNestedValue(row, col.key) }}
-                </ng-template>
-              </td>
-            </tr>
-            <tr *ngIf="filteredData().length === 0">
-              <td [attr.colspan]="config.columns.length" class="no-data">
-                No data available
-              </td>
-            </tr>
+            @for (row of paginatedData(); track row) {
+              <tr (click)="rowClicked.emit(row)">
+                @for (col of config.columns; track col.key) {
+                  <td>
+                    @if (!col.key.includes('.')) {
+                      {{ row[col.key] }}
+                    } @else {
+                      {{ getNestedValue(row, col.key) }}
+                    }
+                  </td>
+                }
+              </tr>
+            }
+            @if (filteredData().length === 0) {
+              <tr>
+                <td [attr.colspan]="config.columns.length" class="no-data">
+                  No data available
+                </td>
+              </tr>
+            }
           </tbody>
         </table>
       </div>
-      
-      <div class="table-footer" *ngIf="config.showPagination">
-        <span class="page-info">
-          Showing {{ startIndex() + 1 }}-{{ endIndex() }} of {{ filteredData().length }}
-        </span>
-        <div class="pagination">
-          <button 
-            class="page-btn" 
-            [disabled]="currentPage() === 1"
-            (click)="goToPage(currentPage() - 1)">
-            Previous
-          </button>
-          <span class="page-numbers">
-            <button 
-              *ngFor="let page of visiblePages()"
-              class="page-num"
-              [class.active]="page === currentPage()"
-              (click)="goToPage(page)">
-              {{ page }}
-            </button>
+
+      @if (config.showPagination) {
+        <div class="table-footer">
+          <span class="page-info">
+            Showing {{ startIndex() + 1 }}-{{ endIndex() }} of {{ filteredData().length }}
           </span>
-          <button 
-            class="page-btn" 
-            [disabled]="currentPage() >= totalPages()"
-            (click)="goToPage(currentPage() + 1)">
-            Next
-          </button>
+          <div class="pagination">
+            <button
+              class="page-btn"
+              [disabled]="currentPage() === 1"
+              (click)="goToPage(currentPage() - 1)">
+              Previous
+            </button>
+            <span class="page-numbers">
+              @for (page of visiblePages(); track page) {
+                <button
+                  class="page-num"
+                  [class.active]="page === currentPage()"
+                  (click)="goToPage(page)">
+                  {{ page }}
+                </button>
+              }
+            </span>
+            <button
+              class="page-btn"
+              [disabled]="currentPage() >= totalPages()"
+              (click)="goToPage(currentPage() + 1)">
+              Next
+            </button>
+          </div>
         </div>
-      </div>
+      }
     </div>
   `,
   styles: [`

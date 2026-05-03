@@ -24,31 +24,33 @@ export interface CalendarEvent {
       </div>
       
       <div class="calendar-grid">
-        <div class="weekday-header" *ngFor="let day of weekdays">
-          {{ day }}
-        </div>
-        
-        <div 
-          class="calendar-day" 
-          *ngFor="let day of calendarDays()"
-          [class.other-month]="!day.isCurrentMonth"
-          [class.today]="day.isToday"
-          [class.has-events]="day.events.length > 0"
-          (click)="onDayClick(day)">
-          <span class="day-number">{{ day.date.getDate() }}</span>
-          <div class="events-container">
-            <div 
-              class="event" 
-              *ngFor="let event of day.events.slice(0, 3)"
-              [style.background-color]="event.color || '#2563eb'"
-              (click)="onEventClick(event, $event)">
-              {{ event.title }}
+        @for (day of weekdays; track day) {
+          <div class="weekday-header">{{ day }}</div>
+        }
+
+        @for (day of calendarDays(); track day.date) {
+          <div
+            class="calendar-day"
+            [class.other-month]="!day.isCurrentMonth"
+            [class.today]="day.isToday"
+            [class.has-events]="day.events.length > 0"
+            (click)="onDayClick(day)">
+            <span class="day-number">{{ day.date.getDate() }}</span>
+            <div class="events-container">
+              @for (event of day.events.slice(0, 3); track event.id) {
+                <div
+                  class="event"
+                  [style.background-color]="event.color || '#2563eb'"
+                  (click)="onEventClick(event, $event)">
+                  {{ event.title }}
+                </div>
+              }
+              @if (day.events.length > 3) {
+                <span class="more-events">+{{ day.events.length - 3 }} more</span>
+              }
             </div>
-            <span *ngIf="day.events.length > 3" class="more-events">
-              +{{ day.events.length - 3 }} more
-            </span>
           </div>
-        </div>
+        }
       </div>
     </div>
   `,

@@ -26,6 +26,14 @@ export class ApiService {
     });
   }
 
+  getBlob(endpoint: string, params?: HttpParams): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}${endpoint}`, {
+      responseType: 'blob',
+      withCredentials: true,
+      params
+    });
+  }
+
   post<T>(endpoint: string, body: any): Observable<T> {
     return this.http.post<T>(`${this.baseUrl}${endpoint}`, body, this.defaultOptions);
   }

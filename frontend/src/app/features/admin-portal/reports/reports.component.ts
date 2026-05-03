@@ -96,9 +96,23 @@ export class ReportsComponent implements OnInit {
   }
 
   downloadReport(): void {
-    const url = this.downloadUrl();
-    if (url) {
-      window.open(url, '_blank');
-    }
+    const endpoint = this.downloadUrl();
+    if (!endpoint) return;
+
+    this.apiService.getBlob(endpoint).subscribe({
+      next: (blob) => {
+        const mimeType = this.formData.format === 'pdf' ? 'application/pdf' : 'text/csv';
+        const typedBlob = new Blob([blob], { type: mimeType });
+        const url = URL.createObjectURL(typedBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `report-${this.formData.reportType}-${new Date().toISOString().slice(0, 10)}.${this.formData.format}`;
+        a.click();
+        URL.revokeObjectURL(url);
+      },
+      error: () => {
+        this.notificationService.error('Error', 'Failed to download report');
+      }
+    });
   }
 }

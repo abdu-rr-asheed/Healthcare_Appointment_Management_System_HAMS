@@ -196,7 +196,29 @@
       <div class="success-icon">✓</div>
       <h2>Appointment Booked Successfully!</h2>
       <p>Your appointment has been scheduled. You will receive a confirmation email shortly.</p>
-      
+
+      @if (confirmationReference()) {
+        <div class="confirmation-reference">
+          <span class="ref-label">Confirmation Reference:</span>
+          <strong class="ref-value">{{ confirmationReference() }}</strong>
+        </div>
+      }
+
+      <div class="booking-summary">
+        <div class="summary-row">
+          <span class="label">Date &amp; Time:</span>
+          <span class="value">{{ formatDate(selectedSlot()!.startDateTime) }} at {{ formatTime(selectedSlot()!.startDateTime) }}</span>
+        </div>
+        <div class="summary-row">
+          <span class="label">Clinician:</span>
+          <span class="value">{{ selectedSlot()!.clinicianName }}</span>
+        </div>
+        <div class="summary-row">
+          <span class="label">Department:</span>
+          <span class="value">{{ selectedSlot()!.departmentName }}</span>
+        </div>
+      </div>
+
       <div class="action-buttons">
         <button class="btn btn-secondary" (click)="resetBooking()">
           Book Another Appointment

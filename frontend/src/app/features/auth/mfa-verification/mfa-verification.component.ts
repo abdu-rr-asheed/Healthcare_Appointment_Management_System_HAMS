@@ -1,5 +1,5 @@
 import { Component, OnInit, ElementRef, ViewChild } from '@angular/core';
-import { Router, ActivatedRoute } from '@angular/router';
+import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { inject } from '@angular/core';
@@ -9,7 +9,7 @@ import { NotificationService } from '../../../core/services/notification.service
 @Component({
   selector: 'app-mfa-verification',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './mfa-verification.component.html',
   styleUrl: './mfa-verification.component.scss'
 })

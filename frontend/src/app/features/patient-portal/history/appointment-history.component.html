@@ -84,6 +84,11 @@
               <button class="btn btn-secondary" (click)="viewDetails(appointment)">
                 View Details
               </button>
+              @if (isUpcoming(appointment) && appointment.status !== 'Cancelled') {
+                <a [routerLink]="['/patient/cancel', appointment.id]" class="btn btn-danger-outline">
+                  Cancel
+                </a>
+              }
             </div>
           </div>
 

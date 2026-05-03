@@ -44,7 +44,7 @@ export interface Appointment {
 @Component({
   selector: 'app-appointment-history',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './appointment-history.component.html',
   styleUrl: './appointment-history.component.scss'
 })

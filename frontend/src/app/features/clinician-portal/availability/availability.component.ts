@@ -208,9 +208,18 @@ export class AvailabilityComponent implements OnInit {
   }
 
   removeLeavePeriod(leaveId: string): void {
-    if (confirm('Remove this leave period?')) {
-      this.notificationService.success('Success', 'Leave period removed (save to apply)');
-    }
+    const clinicianId = this.authService.currentUserValue?.id;
+    if (!clinicianId) return;
+
+    this.apiService.delete(`/clinicians/${clinicianId}/availability/leave/${leaveId}`).subscribe({
+      next: () => {
+        this.leavePeriods.update(periods => periods.filter(p => p.leavePeriodId !== leaveId));
+        this.notificationService.success('Success', 'Leave period removed');
+      },
+      error: () => {
+        this.notificationService.error('Error', 'Failed to remove leave period');
+      }
+    });
   }
 
   updateSlotConfig(index: number, field: string, value: number): void {

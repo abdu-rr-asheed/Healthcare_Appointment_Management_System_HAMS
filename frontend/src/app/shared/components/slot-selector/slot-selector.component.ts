@@ -26,36 +26,40 @@ export interface SlotOption {
       </div>
       
       <div class="slots-grid">
-        <div class="day-column" *ngFor="let day of weekDays()">
-          <div class="day-header">
-            <span class="day-name">{{ day.name }}</span>
-            <span class="day-date">{{ day.date | date:'d MMM' }}</span>
+        @for (day of weekDays(); track day.date) {
+          <div class="day-column">
+            <div class="day-header">
+              <span class="day-name">{{ day.name }}</span>
+              <span class="day-date">{{ day.date | date:'d MMM' }}</span>
+            </div>
+
+            <div class="slots-container">
+              @for (slot of getSlotsForDay(day.date); track slot.id) {
+                <button
+                  class="slot-btn"
+                  [class.available]="slot.isAvailable"
+                  [class.unavailable]="!slot.isAvailable"
+                  [class.selected]="isSelected(slot)"
+                  [disabled]="!slot.isAvailable"
+                  (click)="selectSlot(slot)">
+                  {{ slot.startTime | date:'HH:mm' }}
+                </button>
+              }
+              @if (getSlotsForDay(day.date).length === 0) {
+                <p class="no-slots">No slots available</p>
+              }
+            </div>
           </div>
-          
-          <div class="slots-container">
-            <button
-              *ngFor="let slot of getSlotsForDay(day.date)"
-              class="slot-btn"
-              [class.available]="slot.isAvailable"
-              [class.unavailable]="!slot.isAvailable"
-              [class.selected]="isSelected(slot)"
-              [disabled]="!slot.isAvailable"
-              (click)="selectSlot(slot)">
-              {{ slot.startTime | date:'HH:mm' }}
-            </button>
-            
-            <p *ngIf="getSlotsForDay(day.date).length === 0" class="no-slots">
-              No slots available
-            </p>
-          </div>
+        }
+      </div>
+
+      @if (selectedSlot()) {
+        <div class="selection-info">
+          <span>Selected: </span>
+          <strong>{{ selectedSlot()!.startTime | date:'EEEE, d MMMM yyyy HH:mm' }}</strong>
+          <button class="confirm-btn" (click)="confirmSelection()">Confirm</button>
         </div>
-      </div>
-      
-      <div class="selection-info" *ngIf="selectedSlot()">
-        <span>Selected: </span>
-        <strong>{{ selectedSlot()!.startTime | date:'EEEE, d MMMM yyyy HH:mm' }}</strong>
-        <button class="confirm-btn" (click)="confirmSelection()">Confirm</button>
-      </div>
+      }
     </div>
   `,
   styles: [`

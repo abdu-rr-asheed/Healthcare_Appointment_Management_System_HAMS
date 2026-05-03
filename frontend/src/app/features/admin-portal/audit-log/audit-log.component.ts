@@ -125,15 +125,30 @@ export class AuditLogComponent implements OnInit {
 
   exportLog(): void {
     this.exporting.set(true);
-    
-    let url = '/admin/audit-log/export?';
-    if (this.filters.userId) url += `userId=${this.filters.userId}&`;
-    if (this.filters.action) url += `action=${this.filters.action}&`;
-    if (this.filters.startDate) url += `startDate=${this.filters.startDate}&`;
-    if (this.filters.endDate) url += `endDate=${this.filters.endDate}&`;
-    
-    window.open(url, '_blank');
-    this.exporting.set(false);
+
+    const params = new URLSearchParams();
+    if (this.filters.userId)    params.set('userId',    this.filters.userId);
+    if (this.filters.action)    params.set('action',    this.filters.action);
+    if (this.filters.startDate) params.set('startDate', this.filters.startDate);
+    if (this.filters.endDate)   params.set('endDate',   this.filters.endDate);
+
+    const endpoint = `/admin/audit-log/export${params.toString() ? '?' + params.toString() : ''}`;
+
+    this.apiService.getBlob(endpoint).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        this.exporting.set(false);
+      },
+      error: () => {
+        this.notificationService.error('Error', 'Failed to export audit log');
+        this.exporting.set(false);
+      }
+    });
   }
 
   formatDate(dateString: string): string {

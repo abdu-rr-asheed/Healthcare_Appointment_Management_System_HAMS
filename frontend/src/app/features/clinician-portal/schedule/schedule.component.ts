@@ -41,6 +41,8 @@ export class ScheduleComponent implements OnInit {
   appointments = signal<ScheduledAppointment[]>([]);
   loading = signal<boolean>(false);
   clinicianId = signal<string>('');
+  /** ID of the appointment awaiting DNA confirmation — empty string means no pending confirm. */
+  pendingDnaId = signal<string>('');
 
   viewType = signal<'daily' | 'weekly'>('daily');
   selectedDate = signal<Date>(new Date());
@@ -146,19 +148,26 @@ export class ScheduleComponent implements OnInit {
     this.router.navigate(['/clinician/clinical-notes', appointment.id]);
   }
 
+  requestDnaConfirm(appointment: ScheduledAppointment): void {
+    this.pendingDnaId.set(appointment.id);
+  }
+
+  cancelDnaConfirm(): void {
+    this.pendingDnaId.set('');
+  }
+
   markAsDna(appointment: ScheduledAppointment): void {
-    if (confirm(`Mark ${appointment.patientName} as Did Not Attend?`)) {
-      this.apiService.post(`/appointments/${appointment.id}/dna`, {
-        reason: 'Patient did not attend'
-      }).subscribe({
-        next: () => {
-          this.notificationService.success('Success', 'Appointment marked as DNA');
-          this.loadSchedule();
-        },
-        error: () => {
-          this.notificationService.error('Error', 'Failed to mark as DNA');
-        }
-      });
-    }
+    this.pendingDnaId.set('');
+    this.apiService.post(`/appointments/${appointment.id}/dna`, {
+      reason: 'Patient did not attend'
+    }).subscribe({
+      next: () => {
+        this.notificationService.success('Success', 'Appointment marked as DNA');
+        this.loadSchedule();
+      },
+      error: () => {
+        this.notificationService.error('Error', 'Failed to mark as DNA');
+      }
+    });
   }
 }

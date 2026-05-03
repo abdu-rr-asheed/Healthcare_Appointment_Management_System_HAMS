@@ -25,40 +25,46 @@ export interface AppointmentCardData {
         <div class="datetime">
           <span class="date">{{ formatDate(appointment.dateTime) }}</span>
           <span class="time">{{ formatTime(appointment.dateTime) }}</span>
-          <span *ngIf="appointment.endDateTime" class="end-time">- {{ formatTime(appointment.endDateTime) }}</span>
+          @if (appointment.endDateTime) {
+            <span class="end-time">- {{ formatTime(appointment.endDateTime) }}</span>
+          }
         </div>
         <span class="status-badge" [ngClass]="'badge-' + appointment.status.toLowerCase()">
           {{ appointment.status }}
         </span>
       </div>
-      
+
       <div class="card-body">
         <h4 class="clinician-name">{{ appointment.clinicianName }}</h4>
-        <p *ngIf="appointment.clinicianSpecialty" class="specialty">{{ appointment.clinicianSpecialty }}</p>
+        @if (appointment.clinicianSpecialty) {
+          <p class="specialty">{{ appointment.clinicianSpecialty }}</p>
+        }
         <p class="appointment-type">{{ appointment.type }}</p>
-        <p *ngIf="appointment.location" class="location">{{ appointment.location }}</p>
-        <p *ngIf="appointment.notes" class="notes">{{ appointment.notes }}</p>
+        @if (appointment.location) {
+          <p class="location">{{ appointment.location }}</p>
+        }
+        @if (appointment.notes) {
+          <p class="notes">{{ appointment.notes }}</p>
+        }
       </div>
-      
-      <div class="card-actions" *ngIf="appointment.status === 'Scheduled'">
-        <button 
-          *ngIf="appointment.canReschedule" 
-          class="btn btn-secondary"
-          (click)="onReschedule.emit(appointment)">
-          Reschedule
-        </button>
-        <button 
-          *ngIf="appointment.canCancel" 
-          class="btn btn-danger"
-          (click)="onCancel.emit(appointment)">
-          Cancel
-        </button>
-        <button 
-          class="btn btn-primary"
-          (click)="onViewDetails.emit(appointment)">
-          View Details
-        </button>
-      </div>
+
+      @if (appointment.status === 'Scheduled') {
+        <div class="card-actions">
+          @if (appointment.canReschedule) {
+            <button class="btn btn-secondary" (click)="onReschedule.emit(appointment)">
+              Reschedule
+            </button>
+          }
+          @if (appointment.canCancel) {
+            <button class="btn btn-danger" (click)="onCancel.emit(appointment)">
+              Cancel
+            </button>
+          }
+          <button class="btn btn-primary" (click)="onViewDetails.emit(appointment)">
+            View Details
+          </button>
+        </div>
+      }
     </div>
   `,
   styles: [`

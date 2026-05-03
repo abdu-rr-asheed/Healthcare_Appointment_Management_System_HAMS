@@ -1,5 +1,5 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService } from '../../../core/services/api.service';
@@ -36,7 +36,7 @@ interface ClinicalNote {
 @Component({
   selector: 'app-clinical-notes',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DatePipe],
   templateUrl: './clinical-notes.component.html',
   styleUrl: './clinical-notes.component.scss'
 })
@@ -142,10 +142,24 @@ export class ClinicalNotesComponent implements OnInit {
     });
   }
 
-  deleteNote(noteId: string): void {
-    if (!confirm('Are you sure you want to delete this note?')) return;
+  deletingNoteId = signal<string>('');
 
-    this.notificationService.info('Info', 'Note deletion not implemented in this version');
+  deleteNote(noteId: string): void {
+    if (this.deletingNoteId()) return; // prevent double-click
+
+    this.deletingNoteId.set(noteId);
+
+    this.apiService.delete(`/appointments/${this.appointmentId()}/clinical-notes/${noteId}`).subscribe({
+      next: () => {
+        this.notes.update(current => current.filter(n => n.id !== noteId));
+        this.notificationService.success('Success', 'Clinical note deleted');
+        this.deletingNoteId.set('');
+      },
+      error: () => {
+        this.notificationService.error('Error', 'Failed to delete note');
+        this.deletingNoteId.set('');
+      }
+    });
   }
 
   goBack(): void {

@@ -6,6 +6,11 @@ import { inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthService, RegisterRequest } from '../../../core/services/auth.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import {
+  dateOfBirthValidator,
+  passwordValidator,
+  passwordMatchValidator as sharedPasswordMatchValidator
+} from '../../../shared/validators';
 
 @Component({
   selector: 'app-register',
@@ -33,9 +38,9 @@ export class RegisterComponent {
       nhsNumber: ['', [Validators.required, Validators.minLength(10), Validators.maxLength(50)]],
       email: ['', [Validators.required, Validators.email, Validators.maxLength(100)]],
       phoneNumber: ['', [Validators.required, Validators.minLength(10), Validators.maxLength(20)]],
-      password: ['', [Validators.required, Validators.minLength(8), this.passwordStrengthValidator.bind(this)]],
+      password: ['', [Validators.required, Validators.minLength(8), passwordValidator()]],
       confirmPassword: ['', [Validators.required]],
-      dateOfBirth: ['', [Validators.required, this.ageValidator.bind(this)]],
+      dateOfBirth: ['', [Validators.required, dateOfBirthValidator()]],
       firstName: ['', [Validators.required, Validators.maxLength(100)]],
       lastName: ['', [Validators.required, Validators.maxLength(100)]],
       address: [''],
@@ -45,57 +50,11 @@ export class RegisterComponent {
       smsOptIn: [true],
       emergencyContactName: [''],
       emergencyContactPhone: ['']
-    }, { validators: this.passwordMatchValidator });
+    }, { validators: sharedPasswordMatchValidator('password', 'confirmPassword') });
 
     this.registerForm.get('password')?.valueChanges.subscribe(value => {
       this.calculatePasswordStrength(value);
     });
-  }
-
-  passwordStrengthValidator(control: any): { [key: string]: boolean } | null {
-    const password = control.value;
-    if (!password) return null;
-
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasLowerCase = /[a-z]/.test(password);
-    const hasNumbers = /\d/.test(password);
-    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-    const isLongEnough = password.length >= 8;
-
-    if (!isLongEnough) {
-      return { passwordTooShort: true };
-    }
-
-    const strength = [hasUpperCase, hasLowerCase, hasNumbers, hasSpecialChar].filter(Boolean).length;
-    if (strength < 3) {
-      return { passwordTooWeak: true };
-    }
-
-    return null;
-  }
-
-  passwordMatchValidator(group: FormGroup): { [key: string]: boolean } | null {
-    const password = group.get('password')?.value;
-    const confirmPassword = group.get('confirmPassword')?.value;
-    return password === confirmPassword ? null : { passwordMismatch: true };
-  }
-
-  ageValidator(control: any): { [key: string]: boolean } | null {
-    if (!control.value) return null;
-    const dob = new Date(control.value);
-    const today = new Date();
-    const age = today.getFullYear() - dob.getFullYear();
-    const monthDiff = today.getMonth() - dob.getMonth();
-    
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-      return { tooYoung: true };
-    }
-    
-    if (age < 16 || age > 120) {
-      return { invalidAge: true };
-    }
-    
-    return null;
   }
 
   calculatePasswordStrength(password: string): void {
@@ -190,10 +149,19 @@ export class RegisterComponent {
       minlength: 'Minimum length not met',
       maxlength: 'Maximum length exceeded',
       pattern: 'Invalid format',
-      passwordTooShort: 'Password must be at least 8 characters',
-      passwordTooWeak: 'Password must contain uppercase, lowercase, and numbers',
+      // passwordValidator() error keys
+      minLength: 'Password must be at least 8 characters',
+      noUppercase: 'Password must contain an uppercase letter',
+      noLowercase: 'Password must contain a lowercase letter',
+      noNumber: 'Password must contain a number',
+      noSpecialChar: 'Password must contain a special character (!@#$%^&* etc.)',
+      // passwordMatchValidator (set on confirmPassword control)
       passwordMismatch: 'Passwords do not match',
+      // dateOfBirthValidator() error keys
       tooYoung: 'You must be at least 16 years old',
+      tooOld: 'Please enter a valid date of birth',
+      futureDate: 'Date of birth cannot be in the future',
+      // legacy fallbacks
       invalidAge: 'Please enter a valid date of birth'
     };
 

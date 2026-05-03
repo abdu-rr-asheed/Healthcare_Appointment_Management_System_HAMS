@@ -58,6 +58,7 @@ export class BookingComponent implements OnInit {
   
   loading = signal<boolean>(false);
   currentStep = signal<number>(1);
+  confirmationReference = signal<string>('');
   
   minDate = signal<Date>(new Date());
   maxDate = signal<Date>(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)); // 30 days ahead
@@ -159,8 +160,9 @@ export class BookingComponent implements OnInit {
       notes: this.notes()
     };
 
-    this.apiService.post('/appointments', bookingRequest).subscribe({
+    this.apiService.post<{ confirmationReference?: string; id?: string }>('/appointments', bookingRequest).subscribe({
       next: (response) => {
+        this.confirmationReference.set(response?.confirmationReference || response?.id || '');
         this.notificationService.success('Success', 'Appointment booked successfully!');
         this.currentStep.set(4);
         this.loading.set(false);
@@ -173,7 +175,7 @@ export class BookingComponent implements OnInit {
   }
 
   goToDashboard(): void {
-    this.router.navigate(['/patient']);
+    this.router.navigate(['/patient/dashboard']);
   }
 
   resetBooking(): void {

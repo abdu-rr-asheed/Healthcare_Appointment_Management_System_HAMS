@@ -37,7 +37,7 @@ import { NotificationService } from '../../core/services/notification.service';
       </main>
       
       <footer class="layout-footer">
-        <p>&copy; 2024 Healthcare Appointment Management System</p>
+        <p>&copy; {{ currentYear }} Healthcare Appointment Management System</p>
       </footer>
     </div>
   `,
@@ -63,6 +63,8 @@ export class AdminLayoutComponent {
   private authService = inject(AuthService);
   private notificationService = inject(NotificationService);
   private router = inject(Router);
+
+  readonly currentYear = new Date().getFullYear();
 
   get userName(): string {
     const user = this.authService.currentUserValue;

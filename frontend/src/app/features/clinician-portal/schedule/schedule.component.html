@@ -58,9 +58,17 @@
               View Details
             </button>
             @if (apt.status === 'Confirmed') {
-              <button class="action-btn dna" (click)="markAsDna(apt)">
-                Mark DNA
-              </button>
+              @if (pendingDnaId() === apt.id) {
+                <span class="dna-confirm-inline">
+                  <span class="dna-confirm-text">Mark as Did Not Attend?</span>
+                  <button class="action-btn dna-confirm" (click)="markAsDna(apt)">Yes, mark DNA</button>
+                  <button class="action-btn dna-cancel" (click)="cancelDnaConfirm()">No</button>
+                </span>
+              } @else {
+                <button class="action-btn dna" (click)="requestDnaConfirm(apt)">
+                  Mark DNA
+                </button>
+              }
             }
           </div>
         </div>

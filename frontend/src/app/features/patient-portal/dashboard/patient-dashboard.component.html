@@ -76,7 +76,10 @@
             </div>
 
             <div class="appointment-actions">
-              <!-- Actions available in future -->
+              <span class="status-badge status-{{ appointment.status.toLowerCase() }}">{{ appointment.status }}</span>
+              <a [routerLink]="['/patient/cancel', appointment.id]" class="btn btn-danger-outline btn-sm">
+                Cancel
+              </a>
             </div>
           </div>
         }
